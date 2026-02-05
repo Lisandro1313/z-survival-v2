@@ -2795,6 +2795,51 @@ wss.on('connection', (ws) => {
             return;
         }
 
+        // DONAR AL REFUGIO
+        if (msg.type === 'donate') {
+            const item = msg.item;
+            const cantidad = msg.cantidad || 1;
+
+            if (!player.inventario[item] || player.inventario[item] < cantidad) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No tienes suficiente' }));
+                return;
+            }
+
+            // Remover del inventario del jugador
+            player.inventario[item] -= cantidad;
+
+            // Agregar a los recursos del refugio
+            if (!WORLD.locations.refugio.recursos[item]) {
+                WORLD.locations.refugio.recursos[item] = 0;
+            }
+            WORLD.locations.refugio.recursos[item] += cantidad;
+
+            // Dar XP por donación
+            const xpGain = cantidad * 5;
+            player.xp += xpGain;
+
+            ws.send(JSON.stringify({
+                type: 'donate:success',
+                item,
+                cantidad,
+                inventario: player.inventario,
+                xpGain
+            }));
+
+            broadcast({
+                type: 'world:event',
+                message: `💝 ${player.nombre} donó ${cantidad} ${item} al refugio`,
+                category: 'resource'
+            });
+
+            broadcast({
+                type: 'refugio:recursos',
+                recursos: WORLD.locations.refugio.recursos
+            });
+
+            return;
+        }
+
         // COMERCIAR con Jorge
         if (msg.type === 'trade') {
             const npc = WORLD.npcs.comerciante;

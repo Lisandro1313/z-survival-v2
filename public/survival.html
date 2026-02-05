@@ -639,8 +639,14 @@
               <h2 style="margin-top: 20px;">🎒 INVENTARIO</h2>
               <div id="inventory"></div>
               
-              <h2 style="margin-top: 20px;">📦 REFUGIO</h2>
-              <div id="refugioRecursos" style="font-size: 12px;"></div>
+              <h2 style="margin-top: 20px;">🏠 REFUGIO</h2>
+              <div style="margin-bottom: 10px;">
+                <strong id="defensas" style="color: #00aaff;">🛡️ Defensas: 0</strong>
+              </div>
+              <div id="refugioRecursos" style="font-size: 12px; margin-bottom: 10px;"></div>
+              <button onclick="showDonateMenu()" style="width: 100%; padding: 8px; font-size: 11px; background: #006600; border: 1px solid #00ff00; cursor: pointer;">
+                💝 DONAR AL REFUGIO
+              </button>
 
               <div id="hordeWarning" style="display: none; background: #ff0000; padding: 10px; margin-top: 15px; animation: blink 1s infinite;">
                 🚨 HORDA ACERCÁNDOSE
@@ -1452,6 +1458,59 @@
       player.salud = Math.min(100, player.salud + 10);
       player.hambre = Math.max(0, player.hambre - 5);
       
+      showActionFeedback('💤 Descansando... +10 salud', 'success');
+      renderGame();
+    }
+
+    // ====================================
+    // SISTEMA DE DONACIÓN AL REFUGIO
+    // ====================================
+    function showDonateMenu() {
+      const items = Object.entries(player.inventario)
+        .filter(([item, cant]) => cant > 0)
+        .map(([item, cant]) => `<option value="${item}">${item} (tienes: ${cant})</option>`)
+        .join('');
+      
+      if (!items) {
+        showNotification('No tienes nada que donar', 'warning');
+        return;
+      }
+      
+      const item = prompt(`¿Qué quieres donar al refugio?\n\nOpciones: ${Object.keys(player.inventario).filter(k => player.inventario[k] > 0).join(', ')}`);
+      
+      if (!item || !player.inventario[item]) {
+        return;
+      }
+      
+      const cantidad = parseInt(prompt(`¿Cuánto ${item} quieres donar? (tienes: ${player.inventario[item]})`));
+      
+      if (!cantidad || cantidad <= 0 || cantidad > player.inventario[item]) {
+        showNotification('Cantidad inválida', 'warning');
+        return;
+      }
+      
+      donateToRefugio(item, cantidad);
+    }
+
+    function donateToRefugio(item, cantidad) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+      
+      ws.send(JSON.stringify({
+        type: 'donate',
+        item,
+        cantidad
+      }));
+    }
+
+    function rest() {
+      if (!player) return;
+      
+      player.salud = Math.min(100, player.salud + 10);
+      player.hambre = Math.max(0, player.hambre - 5);
+      
       log('😴 Descansaste un momento. +10 salud', 'success');
       renderGame();
     }
@@ -1747,6 +1806,22 @@
         log(msg.message, 'success');
         if (msg.inventario) player.inventario = msg.inventario;
         renderGame();
+      },
+      
+      'donate:success': (msg) => {
+        log(`💝 Donaste ${msg.cantidad} ${msg.item} al refugio (+${msg.xpGain} XP)`, 'success');
+        player.inventario = msg.inventario;
+        player.xp += msg.xpGain;
+        playSound('success');
+        showNotification(`¡Gracias por tu donación! +${msg.xpGain} XP`, 'success');
+        renderGame();
+      },
+      
+      'refugio:recursos': (msg) => {
+        if (world.locations && world.locations.refugio) {
+          world.locations.refugio.recursos = msg.recursos;
+          renderRefugioRecursos();
+        }
       },
       
       'error': (msg) => {
@@ -3093,7 +3168,16 @@
     function renderRefugioRecursos() {
       if (!world || !world.locations || !world.locations.refugio) return;
       
-      const recursos = world.locations.refugio.recursos;
+      const refugio = world.locations.refugio;
+      const recursos = refugio.recursos || {};
+      
+      // Actualizar defensas
+      const defensasEl = document.getElementById('defensas');
+      if (defensasEl) {
+        defensasEl.textContent = `🛡️ Defensas: ${refugio.defensas || 0}`;
+      }
+      
+      // Actualizar recursos
       const html = Object.entries(recursos).map(([item, cant]) => {
         let color = '#00ff00';
         if (cant < 5) color = '#ff0000';
@@ -3102,7 +3186,10 @@
         return `<div style="margin: 3px 0; color: ${color};">${item}: ${cant}</div>`;
       }).join('');
       
-      document.getElementById('refugioRecursos').innerHTML = html || '<em style="color: #888;">Sin recursos</em>';
+      const refugioEl = document.getElementById('refugioRecursos');
+      if (refugioEl) {
+        refugioEl.innerHTML = html || '<em style="color: #888;">Sin recursos</em>';
+      }
     }
 
     function renderOnlinePlayers(players) {
