@@ -1661,6 +1661,25 @@ app.post('/api/trade/offer', (req, res) => {
         created: Date.now()
     });
 
+    // Notificar al jugador objetivo
+    const targetWs = connections.get(targetId);
+    if (targetWs && targetWs.readyState === WebSocket.OPEN) {
+        targetWs.send(JSON.stringify({
+            type: 'trade:offer_received',
+            from: playerId,
+            fromName: player.nombre,
+            offer: {
+                item: Object.keys(offering)[0],
+                cantidad: Object.values(offering)[0],
+                request: {
+                    item: Object.keys(requesting)[0],
+                    cantidad: Object.values(requesting)[0]
+                }
+            },
+            offerId
+        }));
+    }
+
     res.json({ success: true, offerId });
 });
 
@@ -2021,7 +2040,7 @@ const BROADCAST_THROTTLE = 100; // ms entre broadcasts del mismo tipo
 function throttledBroadcast(type, message, excludePlayerId = null) {
     const now = Date.now();
     const queued = broadcastQueue.get(type);
-    
+
     // Si ya hay un broadcast pendiente del mismo tipo
     if (queued && now - queued.timestamp < BROADCAST_THROTTLE) {
         // Actualizar mensaje pero no enviar aún
@@ -2029,10 +2048,10 @@ function throttledBroadcast(type, message, excludePlayerId = null) {
         queued.excludePlayerId = excludePlayerId;
         return;
     }
-    
+
     // Enviar inmediatamente
     broadcast(message, excludePlayerId);
-    
+
     // Guardar en cola para throttling
     broadcastQueue.set(type, {
         message,
@@ -2238,6 +2257,25 @@ wss.on('connection', (ws) => {
         // PING (mantener conexión activa)
         if (msg.type === 'ping') {
             ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+        }
+
+        // GET PLAYERS LIST
+        if (msg.type === 'getPlayers') {
+            const connectedPlayers = Array.from(connections.keys())
+                .filter(pid => WORLD.players[pid])
+                .map(pid => ({
+                    id: pid,
+                    nombre: WORLD.players[pid].nombre,
+                    locacion: WORLD.players[pid].locacion,
+                    nivel: WORLD.players[pid].nivel,
+                    stats: WORLD.players[pid].stats || {}
+                }));
+
+            ws.send(JSON.stringify({
+                type: 'players:list',
+                players: connectedPlayers
+            }));
             return;
         }
 
@@ -3351,6 +3389,23 @@ wss.on('connection', (ws) => {
             connections.delete(playerId);
             delete WORLD.players[playerId];
             broadcast({ type: 'player:left', playerId });
+            
+            // Enviar lista actualizada de jugadores a todos
+            const connectedPlayers = Array.from(connections.keys())
+                .filter(pid => WORLD.players[pid])
+                .map(pid => ({
+                    id: pid,
+                    nombre: WORLD.players[pid].nombre,
+                    locacion: WORLD.players[pid].locacion,
+                    nivel: WORLD.players[pid].nivel,
+                    stats: WORLD.players[pid].stats || {}
+                }));
+            
+            broadcast({
+                type: 'players:list',
+                players: connectedPlayers
+            });
+            
             console.log(`👋 ${playerId} desconectado`);
         }
     });
@@ -3361,7 +3416,7 @@ wss.on('connection', (ws) => {
 // ====================================
 setInterval(() => {
     let savedCount = 0;
-    
+
     Object.values(WORLD.players).forEach(player => {
         if (player && player.dbId && connections.has(player.id)) {
             survivalDB.guardarProgreso(player.dbId, {
@@ -3377,7 +3432,7 @@ setInterval(() => {
             savedCount++;
         }
     });
-    
+
     if (savedCount > 0) {
         console.log(`💾 Auto-guardado completado: ${savedCount} jugador(es)`);
     }

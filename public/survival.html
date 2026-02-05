@@ -1654,6 +1654,10 @@
       
       'player:joined': (msg) => {
         worldLog(`👤 ${msg.nombre} se unió`, 'success');
+        // Solicitar lista actualizada de jugadores
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'getPlayers' }));
+        }
         renderGame();
       },
       
@@ -1693,6 +1697,55 @@
             mission.completedBy.push(player.id);
           }
         }
+        renderGame();
+      },
+      
+      'dm:received': (msg) => {
+        // Agregar a log local
+        if (!directMessages[msg.from]) directMessages[msg.from] = [];
+        directMessages[msg.from].push({
+          from: msg.from,
+          to: player.id,
+          message: msg.message,
+          timestamp: Date.now(),
+          sent: false
+        });
+        
+        // Incrementar contador de no leídos
+        unreadDMs++;
+        updateDMBadge();
+        
+        // Notificación
+        playSound('warning');
+        log(`💌 Mensaje privado de ${msg.fromName || allPlayers[msg.from] || 'Desconocido'}`, 'warning');
+        
+        // Si está viendo DMs de ese jugador, actualizar
+        if (currentDMTarget === msg.from) {
+          renderDMs();
+          unreadDMs--;
+          updateDMBadge();
+        }
+        
+        // Badge en tab social
+        const socialTab = document.getElementById('tab-social');
+        if (socialTab && !socialTab.classList.contains('active')) {
+          showBadge('social');
+        }
+      },
+      
+      'dm:sent': (msg) => {
+        playSound('success');
+      },
+      
+      'trade:offer_received': (msg) => {
+        log(`📦 ${msg.fromName} te ofrece: ${msg.offer.item} x${msg.offer.cantidad} por ${msg.offer.request.item} x${msg.offer.request.cantidad}`, 'warning');
+        showNotification(`📦 Oferta de comercio de ${msg.fromName}`, 'warning');
+        playSound('notification');
+      },
+      
+      'trade:success': (msg) => {
+        log(msg.message, 'success');
+        if (msg.inventario) player.inventario = msg.inventario;
         renderGame();
       },
       
