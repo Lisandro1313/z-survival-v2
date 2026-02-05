@@ -698,7 +698,7 @@ function executeHorde() {
 
     // Daño = zombies - defensas
     const danio = Math.max(0, hordeSize - refugio.defensas / 10);
-    
+
     // REDUCIR DEFENSAS DEL REFUGIO
     const danioDefensas = Math.floor(hordeSize / 2);
     refugio.defensas = Math.max(0, refugio.defensas - danioDefensas);
@@ -1181,7 +1181,9 @@ wss.on('connection', (ws) => {
 
             // Calcular kills basado en daño
             if (resultado.killed === 0) {
-                resultado.killed = Math.min(loc.zombies, Math.floor(resultado.danio / 25));
+                // Mínimo 1 kill si hiciste daño, máximo según daño total
+                const killsCalculados = Math.floor(resultado.danio / 25);
+                resultado.killed = Math.min(loc.zombies, Math.max(1, killsCalculados));
             }
             loc.zombies -= resultado.killed;
             loc.nivelRuido += resultado.ruido;
