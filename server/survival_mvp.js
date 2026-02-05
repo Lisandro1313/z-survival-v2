@@ -195,12 +195,22 @@ const WORLD = {
         resultado: null
     },
 
-    // Sistema de crafteo
+    // Sistema de crafteo mejorado
     craftingRecipes: {
         vendaje: { materiales: 2, resultado: { tipo: 'medicinas', cantidad: 1 } },
         molotov: { materiales: 3, comida: 1, resultado: { tipo: 'armas', cantidad: 1 } },
         barricada: { materiales: 5, resultado: { tipo: 'defensa', cantidad: 10 } },
-        trampa: { materiales: 4, armas: 1, resultado: { tipo: 'defensa', cantidad: 15 } }
+        trampa: { materiales: 4, armas: 1, resultado: { tipo: 'defensa', cantidad: 15 } },
+        
+        // NUEVAS RECETAS
+        antibiotico: { medicinas: 2, materiales: 1, resultado: { tipo: 'medicinas_avanzadas', cantidad: 1 } },
+        machete: { materiales: 6, armas: 1, resultado: { tipo: 'arma_melee', cantidad: 1 } },
+        pistola_mejorada: { armas: 3, materiales: 5, resultado: { tipo: 'arma_fuerte', cantidad: 1 } },
+        armadura_ligera: { materiales: 8, comida: 2, resultado: { tipo: 'armadura', cantidad: 1 } },
+        botiquin: { medicinas: 3, materiales: 2, resultado: { tipo: 'kit_medico', cantidad: 1 } },
+        explosivo: { materiales: 10, armas: 2, comida: 3, resultado: { tipo: 'bomba', cantidad: 1 } },
+        radio: { materiales: 15, armas: 1, resultado: { tipo: 'comunicador', cantidad: 1 } },
+        generador: { materiales: 20, armas: 3, resultado: { tipo: 'energia', cantidad: 1 } }
     },
 
     // Quests emergentes
@@ -1076,52 +1086,138 @@ wss.on('connection', (ws) => {
         }
 
         // DISPARAR (mata zombies pero atrae más)
-        if (msg.type === 'shoot') {
+        // COMBATE MEJORADO
+        if (msg.type === 'attack') {
+            const tipoAtaque = msg.attackType || 'shoot'; // shoot, melee, stealth
+            
             // Cooldown check
             if (player.cooldowns.shoot && Date.now() < player.cooldowns.shoot) {
                 const segundos = Math.ceil((player.cooldowns.shoot - Date.now()) / 1000);
-                ws.send(JSON.stringify({ type: 'error', error: `Espera ${segundos}s antes de disparar de nuevo` }));
+                ws.send(JSON.stringify({ type: 'error', error: `Espera ${segundos}s antes de atacar de nuevo` }));
                 return;
             }
 
             const loc = WORLD.locations[player.locacion];
-
-            if (!player.inventario.armas || player.inventario.armas < 1) {
-                ws.send(JSON.stringify({ type: 'error', error: 'No tienes armas' }));
-                return;
-            }
 
             if (loc.zombies === 0) {
                 ws.send(JSON.stringify({ type: 'error', error: 'No hay zombies aquí' }));
                 return;
             }
 
-            // DESCONTAR 1 ARMA (BUG FIX)
-            player.inventario.armas -= 1;
+            let resultado = { killed: 0, critico: false, loot: {}, ruido: 0, danio: 0 };
 
-            // Matar zombies (skill de combate aumenta efectividad)
-            const killed = Math.min(loc.zombies, Math.floor(player.skills.combate / 2) + 1);
-            loc.zombies -= killed;
+            // DISPARO (usa arma, alto daño, mucho ruido)
+            if (tipoAtaque === 'shoot') {
+                if (!player.inventario.armas || player.inventario.armas < 1) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'No tienes armas' }));
+                    return;
+                }
+                player.inventario.armas -= 1;
+                
+                // Daño base + skill
+                resultado.danio = 30 + Math.floor(player.skills.combate * 3);
+                resultado.ruido = 60;
+                
+                // Chance de crítico (20% + agilidad)
+                if (Math.random() < 0.2 + (player.atributos.agilidad / 100)) {
+                    resultado.critico = true;
+                    resultado.danio *= 2;
+                }
+            }
+            // MELEE (sin arma, daño medio, poco ruido)
+            else if (tipoAtaque === 'melee') {
+                // Daño = fuerza + skill
+                resultado.danio = 15 + player.atributos.fuerza + Math.floor(player.skills.combate * 2);
+                resultado.ruido = 20;
+                
+                // Chance de crítico
+                if (Math.random() < 0.15 + (player.atributos.fuerza / 100)) {
+                    resultado.critico = true;
+                    resultado.danio *= 1.5;
+                }
+            }
+            // SIGILO (requiere skill, 1 kill silencioso o falla)
+            else if (tipoAtaque === 'stealth') {
+                const chanceExito = 0.3 + (player.skills.supervivencia / 20) + (player.atributos.agilidad / 50);
+                
+                if (Math.random() < chanceExito) {
+                    resultado.killed = 1;
+                    resultado.danio = 999; // Instakill
+                    resultado.ruido = 0;
+                } else {
+                    // Falla = te detectan, recibes daño
+                    player.salud = Math.max(0, player.salud - 15);
+                    ws.send(JSON.stringify({
+                        type: 'combat:result',
+                        killed: 0,
+                        critico: false,
+                        falloSigilo: true,
+                        remaining: loc.zombies,
+                        loot: {},
+                        inventario: player.inventario
+                    }));
+                    return;
+                }
+            }
 
-            // ¡Pero genera MUCHO ruido!
-            loc.nivelRuido += 60;
+            // Calcular kills basado en daño
+            if (resultado.killed === 0) {
+                resultado.killed = Math.min(loc.zombies, Math.floor(resultado.danio / 25));
+            }
+            loc.zombies -= resultado.killed;
+            loc.nivelRuido += resultado.ruido;
+
+            // LOOT de zombies muertos
+            if (resultado.killed > 0) {
+                for (let i = 0; i < resultado.killed; i++) {
+                    // 30% chance de loot
+                    if (Math.random() < 0.3) {
+                        const lootTable = [
+                            { tipo: 'comida', chance: 0.4, cantidad: 1 },
+                            { tipo: 'medicinas', chance: 0.2, cantidad: 1 },
+                            { tipo: 'armas', chance: 0.15, cantidad: 1 },
+                            { tipo: 'materiales', chance: 0.25, cantidad: 2 }
+                        ];
+                        
+                        const roll = Math.random();
+                        let acum = 0;
+                        for (const item of lootTable) {
+                            acum += item.chance;
+                            if (roll < acum) {
+                                resultado.loot[item.tipo] = (resultado.loot[item.tipo] || 0) + item.cantidad;
+                                player.inventario[item.tipo] = (player.inventario[item.tipo] || 0) + item.cantidad;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             ws.send(JSON.stringify({
-                type: 'shoot:result',
-                killed,
+                type: 'combat:result',
+                killed: resultado.killed,
+                critico: resultado.critico,
                 remaining: loc.zombies,
-                warning: '⚠️ ¡El ruido atraerá más zombies!',
+                loot: resultado.loot,
+                tipoAtaque,
                 inventario: player.inventario
             }));
 
             // Subir skill combate
-            player.skills.combate = Math.min(10, player.skills.combate + 0.3);
+            player.skills.combate = Math.min(10, player.skills.combate + (resultado.killed * 0.2));
 
             // Ganar XP
-            giveXP(player, killed * 5, ws);
+            const xpBase = tipoAtaque === 'stealth' ? 15 : 8;
+            giveXP(player, resultado.killed * xpBase, ws);
 
-            // Cooldown de 4 segundos
-            player.cooldowns.shoot = Date.now() + 4000;
+            // Cooldown (sigilo es más rápido)
+            player.cooldowns.shoot = Date.now() + (tipoAtaque === 'stealth' ? 2000 : 4000);
+
+            broadcast({
+                type: 'world:event',
+                message: `⚔️ ${player.nombre} eliminó ${resultado.killed} zombies en ${loc.nombre}${resultado.critico ? ' ¡CRÍTICO!' : ''}`,
+                category: 'combat'
+            });
 
             return;
         }
@@ -1270,6 +1366,67 @@ wss.on('connection', (ws) => {
                     }
                 });
                 resultado += 'Todo salió bien.';
+                
+                // XP POR COMPLETAR EVENTO
+                const xpGanado = 25;
+                player.xp += xpGanado;
+                
+                ws.send(JSON.stringify({
+                    type: 'xp:gained',
+                    amount: xpGanado,
+                    xp: player.xp,
+                    xpMax: player.xpParaSiguienteNivel
+                }));
+                
+                // Verificar nivel
+                if (player.xp >= player.xpParaSiguienteNivel) {
+                    player.nivel++;
+                    player.xp = 0;
+                    player.xpParaSiguienteNivel = Math.floor(player.xpParaSiguienteNivel * 1.5);
+                    ws.send(JSON.stringify({
+                        type: 'level:up',
+                        nivel: player.nivel,
+                        xpMax: player.xpParaSiguienteNivel
+                    }));
+                }
+                
+                // Si el evento es de REFUGIADOS, agregar NPC dinámico
+                if (evento.id === 'refugiados' && msg.opcionIndex === 0) {
+                    const nombres = ['Ana', 'Pedro', 'Luis', 'Carmen', 'Miguel', 'Sofia', 'Carlos', 'Elena'];
+                    const apellidos = ['García', 'López', 'Martínez', 'Rodríguez', 'González', 'Fernández'];
+                    const nombreCompleto = `${nombres[Math.floor(Math.random() * nombres.length)]} ${apellidos[Math.floor(Math.random() * apellidos.length)]}`;
+                    
+                    const npcId = `refugiado_${Date.now()}`;
+                    WORLD.npcs[npcId] = {
+                        id: npcId,
+                        nombre: nombreCompleto,
+                        rol: 'refugiado',
+                        locacion: 'refugio',
+                        salud: 80,
+                        hambre: 60,
+                        moral: 70,
+                        vivo: true,
+                        estado: 'activo',
+                        enMision: false,
+                        dialogo: `Gracias por aceptarnos, ${player.nombre}. No te defraudaremos.`,
+                        dialogos: [
+                            'Venimos de muy lejos...',
+                            'No teníamos a dónde ir.',
+                            'Ayudaremos en lo que podamos.',
+                            'Mi familia está a salvo gracias a ti.',
+                            '¿Creen que sobreviviremos a esto?',
+                            'Extraño cómo era el mundo antes.',
+                            'Cada día es una nueva oportunidad.',
+                            'Gracias por darnos una segunda oportunidad.'
+                        ]
+                    };
+                    
+                    broadcast({
+                        type: 'world:event',
+                        message: `👥 ${nombreCompleto} se unió al refugio`,
+                        category: 'npc'
+                    });
+                }
             }
 
             // Remover evento
@@ -1344,6 +1501,23 @@ wss.on('connection', (ws) => {
                 votos: WORLD.questCooperativa.votos
             });
 
+            return;
+        }
+
+        // CHAT
+        if (msg.type === 'chat') {
+            const chatMessage = {
+                type: 'chat:message',
+                playerId,
+                nombre: player.nombre,
+                avatar: player.avatar,
+                color: player.color,
+                mensaje: msg.mensaje,
+                timestamp: Date.now()
+            };
+
+            broadcast(chatMessage);
+            
             return;
         }
     });
