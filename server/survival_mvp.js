@@ -201,7 +201,7 @@ const WORLD = {
         molotov: { materiales: 3, comida: 1, resultado: { tipo: 'armas', cantidad: 1 } },
         barricada: { materiales: 5, resultado: { tipo: 'defensa', cantidad: 10 } },
         trampa: { materiales: 4, armas: 1, resultado: { tipo: 'defensa', cantidad: 15 } },
-        
+
         // NUEVAS RECETAS
         antibiotico: { medicinas: 2, materiales: 1, resultado: { tipo: 'medicinas_avanzadas', cantidad: 1 } },
         machete: { materiales: 6, armas: 1, resultado: { tipo: 'arma_melee', cantidad: 1 } },
@@ -698,6 +698,11 @@ function executeHorde() {
 
     // Daño = zombies - defensas
     const danio = Math.max(0, hordeSize - refugio.defensas / 10);
+    
+    // REDUCIR DEFENSAS DEL REFUGIO
+    const danioDefensas = Math.floor(hordeSize / 2);
+    refugio.defensas = Math.max(0, refugio.defensas - danioDefensas);
+    console.log(`🛡️ Defensas reducidas: ${danioDefensas} (Nuevas: ${refugio.defensas})`);
 
     // NPCs pueden morir
     const npcsVivos = Object.values(WORLD.npcs).filter(n => n.vivo);
@@ -724,7 +729,9 @@ function executeHorde() {
         type: 'horde:attacked',
         zombies: hordeSize,
         danio,
-        message: `🧟 Horda de ${hordeSize} zombies atacó. Daño: ${danio}`
+        defensas: refugio.defensas,
+        danioDefensas,
+        message: `🧟 Horda de ${hordeSize} zombies atacó. Daño: ${danio} | Defensas: ${refugio.defensas} (-${danioDefensas})`
     });
 }
 
@@ -918,12 +925,12 @@ wss.on('connection', (ws) => {
         if (!playerId) return;
 
         const player = WORLD.players[playerId];
-        
+
         // Verificar que el jugador existe
         if (!player) {
-            ws.send(JSON.stringify({ 
-                type: 'error', 
-                error: 'Jugador no encontrado. Recarga la página.' 
+            ws.send(JSON.stringify({
+                type: 'error',
+                error: 'Jugador no encontrado. Recarga la página.'
             }));
             return;
         }
@@ -1101,7 +1108,7 @@ wss.on('connection', (ws) => {
         // COMBATE MEJORADO
         if (msg.type === 'attack') {
             const tipoAtaque = msg.attackType || 'shoot'; // shoot, melee, stealth
-            
+
             // Cooldown check
             if (player.cooldowns.shoot && Date.now() < player.cooldowns.shoot) {
                 const segundos = Math.ceil((player.cooldowns.shoot - Date.now()) / 1000);
@@ -1125,11 +1132,11 @@ wss.on('connection', (ws) => {
                     return;
                 }
                 player.inventario.armas -= 1;
-                
+
                 // Daño base + skill
                 resultado.danio = 30 + Math.floor(player.skills.combate * 3);
                 resultado.ruido = 60;
-                
+
                 // Chance de crítico (20% + agilidad)
                 if (Math.random() < 0.2 + (player.atributos.agilidad / 100)) {
                     resultado.critico = true;
@@ -1141,7 +1148,7 @@ wss.on('connection', (ws) => {
                 // Daño = fuerza + skill
                 resultado.danio = 15 + player.atributos.fuerza + Math.floor(player.skills.combate * 2);
                 resultado.ruido = 20;
-                
+
                 // Chance de crítico
                 if (Math.random() < 0.15 + (player.atributos.fuerza / 100)) {
                     resultado.critico = true;
@@ -1151,7 +1158,7 @@ wss.on('connection', (ws) => {
             // SIGILO (requiere skill, 1 kill silencioso o falla)
             else if (tipoAtaque === 'stealth') {
                 const chanceExito = 0.3 + (player.skills.supervivencia / 20) + (player.atributos.agilidad / 50);
-                
+
                 if (Math.random() < chanceExito) {
                     resultado.killed = 1;
                     resultado.danio = 999; // Instakill
@@ -1190,7 +1197,7 @@ wss.on('connection', (ws) => {
                             { tipo: 'armas', chance: 0.15, cantidad: 1 },
                             { tipo: 'materiales', chance: 0.25, cantidad: 2 }
                         ];
-                        
+
                         const roll = Math.random();
                         let acum = 0;
                         for (const item of lootTable) {
@@ -1378,18 +1385,18 @@ wss.on('connection', (ws) => {
                     }
                 });
                 resultado += 'Todo salió bien.';
-                
+
                 // XP POR COMPLETAR EVENTO
                 const xpGanado = 25;
                 player.xp += xpGanado;
-                
+
                 ws.send(JSON.stringify({
                     type: 'xp:gained',
                     amount: xpGanado,
                     xp: player.xp,
                     xpMax: player.xpParaSiguienteNivel
                 }));
-                
+
                 // Verificar nivel
                 if (player.xp >= player.xpParaSiguienteNivel) {
                     player.nivel++;
@@ -1401,13 +1408,13 @@ wss.on('connection', (ws) => {
                         xpMax: player.xpParaSiguienteNivel
                     }));
                 }
-                
+
                 // Si el evento es de REFUGIADOS, agregar NPC dinámico
                 if (evento.id === 'refugiados' && msg.opcionIndex === 0) {
                     const nombres = ['Ana', 'Pedro', 'Luis', 'Carmen', 'Miguel', 'Sofia', 'Carlos', 'Elena'];
                     const apellidos = ['García', 'López', 'Martínez', 'Rodríguez', 'González', 'Fernández'];
                     const nombreCompleto = `${nombres[Math.floor(Math.random() * nombres.length)]} ${apellidos[Math.floor(Math.random() * apellidos.length)]}`;
-                    
+
                     const npcId = `refugiado_${Date.now()}`;
                     WORLD.npcs[npcId] = {
                         id: npcId,
@@ -1432,7 +1439,7 @@ wss.on('connection', (ws) => {
                             'Gracias por darnos una segunda oportunidad.'
                         ]
                     };
-                    
+
                     broadcast({
                         type: 'world:event',
                         message: `👥 ${nombreCompleto} se unió al refugio`,
@@ -1529,7 +1536,7 @@ wss.on('connection', (ws) => {
             };
 
             broadcast(chatMessage);
-            
+
             return;
         }
     });
