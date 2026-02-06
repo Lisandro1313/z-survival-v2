@@ -793,6 +793,10 @@
             🌍 MUNDO
             <span class="tab-badge" id="badge-mundo" style="display: none;">!</span>
           </button>
+          <button class="tab-button" onclick="switchTab('grupos')" id="tab-btn-grupos">
+            👥 GRUPOS
+            <span class="tab-badge" id="badge-grupos" style="display: none;">!</span>
+          </button>
           <button class="tab-button" onclick="switchTab('progression')">
             📊 PROGRESIÓN
           </button>
@@ -1202,6 +1206,58 @@
               </p>
               <div id="npcActionsLog" style="max-height: 350px; overflow-y: auto; font-size: 11px;">
                 <p style="text-align: center; color: #888;">Sin acciones registradas...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PESTAÑA 4.5: GRUPOS -->
+        <div id="tab-grupos" class="tab-content">
+          <div class="container">
+            <!-- Panel izquierdo: Tu Grupo Actual -->
+            <div class="panel">
+              <h2>👥 TU GRUPO</h2>
+              <div id="currentGroup" style="font-size: 12px;">
+                <p style="color: #888; font-style: italic;">No perteneces a ningún grupo</p>
+                <button onclick="showCreateGroupForm()" style="width: 100%; padding: 10px; margin-top: 10px; background: #006600; border: 1px solid #00ff00; color: #00ff00; cursor: pointer; font-size: 12px;">
+                  ➕ CREAR GRUPO
+                </button>
+              </div>
+
+              <div id="groupMembersSection" style="margin-top: 20px; display: none;">
+                <h3>Miembros del Grupo</h3>
+                <div id="groupMembers" style="font-size: 11px; max-height: 200px; overflow-y: auto;">
+                </div>
+                <button onclick="leaveGroup()" style="width: 100%; padding: 8px; margin-top: 10px; background: #660000; border: 1px solid #ff0000; color: #ff0000; cursor: pointer; font-size: 11px;">
+                  🚪 SALIR DEL GRUPO
+                </button>
+              </div>
+
+              <!-- Chat de Grupo -->
+              <div id="groupChatSection" style="margin-top: 20px; display: none;">
+                <h3>💬 Chat de Grupo</h3>
+                <div id="groupChatLog" style="background: #000; border: 1px solid #00ff00; padding: 10px; font-size: 11px; height: 150px; overflow-y: auto; margin-bottom: 10px; font-family: monospace;">
+                </div>
+                <div style="display: flex; gap: 5px;">
+                  <input type="text" id="groupChatInput" placeholder="Mensaje al grupo..." style="flex: 1; padding: 8px; background: #000; border: 1px solid #00ff00; color: #00ff00; font-size: 11px;" onkeypress="if(event.key==='Enter') sendGroupChat()">
+                  <button onclick="sendGroupChat()" style="padding: 8px 15px; background: #006600; border: 1px solid #00ff00; color: #00ff00; cursor: pointer; font-size: 11px;">
+                    ENVIAR
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel derecho: Grupos Disponibles -->
+            <div class="panel">
+              <h2>🌍 GRUPOS DISPONIBLES</h2>
+              <p style="color: #888; font-size: 11px; margin-bottom: 10px;">
+                Únete a un grupo existente o crea el tuyo. Los grupos permiten chat privado, misiones cooperativas y recompensas compartidas.
+              </p>
+              <button onclick="refreshGroupsList()" style="width: 100%; padding: 8px; margin-bottom: 15px; background: #003366; border: 1px solid #00aaff; color: #00aaff; cursor: pointer; font-size: 11px;">
+                🔄 ACTUALIZAR LISTA
+              </button>
+              <div id="availableGroups" style="font-size: 11px; max-height: 400px; overflow-y: auto;">
+                <em style="color: #888;">Cargando grupos...</em>
               </div>
             </div>
           </div>
@@ -3385,11 +3441,93 @@
       'event:resolved_broadcast': (msg) => {
         log(`✅ Evento resuelto: ${msg.message}`, 'success');
       },
+
+      // ===== MISIONES DE NPCs =====
+      'npc:mission_accepted': (msg) => {
+        player.activeMission = msg.mission;
+        log(`📜 Misión aceptada: ${msg.mission.descripcion}`, 'success');
+        showActionFeedback(msg.message, 'success');
+        playSound('achievement');
+        renderGame();
+      },
+
+      'npc:mission_completed': (msg) => {
+        delete player.activeMission;
+        log(`✅ ${msg.message}`, 'success');
+        
+        const rewards = [];
+        if (msg.recompensas.xp) rewards.push(`+${msg.recompensas.xp} XP`);
+        if (msg.recompensas.reputacion) rewards.push(`+${msg.recompensas.reputacion} Reputación`);
+        Object.keys(msg.recompensas).forEach(key => {
+          if (key !== 'xp' && key !== 'reputacion') {
+            rewards.push(`+${msg.recompensas[key]} ${key}`);
+          }
+        });
+        
+        showActionFeedback(`🎁 Recompensas: ${rewards.join(', ')}`, 'success');
+        playSound('level_up');
+        renderGame();
+      },
+
+      'npc:resource_given': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        showActionFeedback(msg.message, 'success');
+        playSound('item_pickup');
+        renderGame();
+      },
+
+      // ===== GRUPOS =====
+      'group:created': (msg) => {
+        currentGroup = msg.group;
+        log(`👥 ${msg.message}`, 'success');
+        showActionFeedback(msg.message, 'success');
+        renderGroupPanel();
+        playSound('achievement');
+      },
+
+      'group:joined': (msg) => {
+        currentGroup = msg.group;
+        log(`👥 ${msg.message}`, 'success');
+        showActionFeedback(msg.message, 'success');
+        renderGroupPanel();
+        playSound('achievement');
+      },
+
+      'group:left': (msg) => {
+        currentGroup = null;
+        log(`🚪 ${msg.message}`, 'info');
+        showActionFeedback(msg.message, 'info');
+        renderGroupPanel();
+      },
+
+      'group:member_joined': (msg) => {
+        currentGroup = msg.group;
+        log(`👥 ${msg.message}`, 'info');
+        addGroupChatMessage(`SISTEMA: ${msg.message}`);
+        renderGroupPanel();
+      },
+
+      'group:member_left': (msg) => {
+        currentGroup = msg.group;
+        log(`🚪 ${msg.message}`, 'info');
+        addGroupChatMessage(`SISTEMA: ${msg.message}`);
+        renderGroupPanel();
+      },
+
+      'group:chat_message': (msg) => {
+        addGroupChatMessage(`${msg.message.jugador}: ${msg.message.mensaje}`);
+      },
+
+      'group:list_response': (msg) => {
+        renderAvailableGroups(msg.groups);
+      },
       
       'error': (msg) => {
         log(`⚠️ ERROR: ${msg.error}`, 'warning');
       }
     };
+
+    let currentGroup = null;
 
     function handleMessage(msg) {
       const handler = messageHandlers[msg.type];
@@ -4341,6 +4479,24 @@
       const saludColor = player.salud < 30 ? '#ff0000' : player.salud < 50 ? '#ffaa00' : '#00ff00';
       const hambreColor = player.hambre < 30 ? '#ff0000' : player.hambre < 50 ? '#ffaa00' : '#88ff88';
       
+      let missionHtml = '';
+      if (player.activeMission) {
+        const mission = player.activeMission;
+        const tiempoTranscurrido = Math.floor((Date.now() - mission.inicioTimestamp) / 1000);
+        const tiempoRestante = mission.duracion ? mission.duracion - tiempoTranscurrido : null;
+        
+        missionHtml = `
+          <div style="background: #003366; border: 2px solid #00aaff; padding: 10px; margin: 10px 0; border-radius: 5px; animation: pulse 2s infinite;">
+            <div style="font-weight: bold; color: #00ffff; margin-bottom: 5px;">📜 MISIÓN ACTIVA</div>
+            <div style="font-size: 11px; color: #88ddff; margin-bottom: 5px;">${mission.descripcion}</div>
+            ${tiempoRestante !== null && tiempoRestante > 0 ? `<div style="font-size: 10px; color: #ffaa00;">⏱️ ${tiempoRestante}s restantes</div>` : ''}
+            <button onclick="completeMission()" style="width: 100%; padding: 8px; margin-top: 8px; background: #006600; border: 1px solid #00ff00; color: #00ff00; cursor: pointer; font-size: 11px;">
+              ✅ COMPLETAR MISIÓN
+            </button>
+          </div>
+        `;
+      }
+      
       const html = `
         <div style="text-align: center; font-size: 60px; margin-bottom: 10px; color: ${player.color || '#00ff00'};">
           ${player.avatar || '👤'}
@@ -4377,6 +4533,7 @@
             <div class="stat-fill hambre" style="width: ${player.hambre}%; background: ${hambreColor};"></div>
           </div>
         </div>
+        ${missionHtml}
       `;
       document.getElementById('playerStats').innerHTML = html;
     }
@@ -4560,19 +4717,25 @@
     function renderNPCs() {
       const html = Object.values(world.npcs)
         .filter(npc => npc.locacion === 'refugio')
-        .map(npc => `
+        .map(npc => {
+          const hasMissions = npc.misionesDisponibles && npc.misionesDisponibles.length > 0;
+          
+          return `
           <div class="npc ${!npc.vivo ? 'dead' : ''}">
             <div class="npc-name">${npc.nombre} ${!npc.vivo ? '💀' : ''}</div>
             ${npc.vivo ? `
               <div style="font-size: 11px; margin: 5px 0;">
                 ❤️ ${npc.salud} | 🍖 ${npc.hambre} | 😊 ${npc.moral}
               </div>
-              <button onclick="talkTo('${npc.id}')">💬</button>
-              <button onclick="giveItem('${npc.id}', 'comida')">🍖</button>
-              <button onclick="giveItem('${npc.id}', 'medicinas')">💊</button>
+              <div style="display: flex; gap: 3px; flex-wrap: wrap;">
+                <button onclick="talkTo('${npc.id}')" style="flex: 1; min-width: 40px; padding: 5px; font-size: 11px;">💬</button>
+                <button onclick="showGiveResourceMenu('${npc.id}')" style="flex: 1; min-width: 40px; padding: 5px; font-size: 11px;" title="Dar recursos">🎁</button>
+                ${hasMissions ? `<button onclick="showNPCMissions('${npc.id}')" style="flex: 1; min-width: 40px; padding: 5px; font-size: 11px; background: #003366; border-color: #00aaff; color: #00aaff;" title="Misiones">📜</button>` : ''}
+              </div>
             ` : '<em>Muerto</em>'}
           </div>
-        `).join('');
+        `;
+        }).join('');
       document.getElementById('npcs').innerHTML = html;
     }
 
@@ -5796,6 +5959,322 @@
         showConsequence('📌 Navegando a ' + featuredStoryData.target.toUpperCase(), 'neutral');
       }
     }
+
+    // ====================================
+    // SISTEMA DE GRUPOS
+    // ====================================
+    function showCreateGroupForm() {
+      const groupName = prompt('Nombre del grupo (mínimo 3 caracteres):');
+      if (!groupName || groupName.trim().length < 3) {
+        showActionFeedback('El nombre debe tener al menos 3 caracteres', 'danger');
+        return;
+      }
+
+      const usePassword = confirm('¿Quieres proteger el grupo con contraseña?');
+      let password = null;
+      
+      if (usePassword) {
+        password = prompt('Contraseña del grupo:');
+        if (!password) {
+          showActionFeedback('Contraseña requerida', 'danger');
+          return;
+        }
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'group:create',
+        groupName: groupName.trim(),
+        password: password
+      }));
+    }
+
+    function refreshGroupsList() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({ type: 'group:list' }));
+      showActionFeedback('Actualizando lista de grupos...', 'info');
+    }
+
+    function joinGroup(groupId, hasPassword) {
+      let password = null;
+      
+      if (hasPassword) {
+        password = prompt('Contraseña del grupo:');
+        if (!password) return;
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'group:join',
+        groupId: groupId,
+        password: password
+      }));
+    }
+
+    function leaveGroup() {
+      if (!confirm('¿Seguro que quieres abandonar el grupo?')) return;
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({ type: 'group:leave' }));
+    }
+
+    function sendGroupChat() {
+      const input = document.getElementById('groupChatInput');
+      const mensaje = input.value.trim();
+      
+      if (!mensaje) return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'group:chat',
+        mensaje: mensaje
+      }));
+      
+      input.value = '';
+    }
+
+    function renderGroupPanel() {
+      const currentGroupDiv = document.getElementById('currentGroup');
+      const membersSection = document.getElementById('groupMembersSection');
+      const chatSection = document.getElementById('groupChatSection');
+
+      if (!currentGroup) {
+        currentGroupDiv.innerHTML = `
+          <p style="color: #888; font-style: italic;">No perteneces a ningún grupo</p>
+          <button onclick="showCreateGroupForm()" style="width: 100%; padding: 10px; margin-top: 10px; background: #006600; border: 1px solid #00ff00; color: #00ff00; cursor: pointer; font-size: 12px;">
+            ➕ CREAR GRUPO
+          </button>
+        `;
+        membersSection.style.display = 'none';
+        chatSection.style.display = 'none';
+        return;
+      }
+
+      const isLeader = currentGroup.lider === player.id;
+      
+      currentGroupDiv.innerHTML = `
+        <div style="background: #003300; border: 1px solid #00ff00; padding: 15px; border-radius: 5px;">
+          <h3 style="margin-top: 0; color: var(--green-bright);">${currentGroup.nombre}</h3>
+          <p style="font-size: 11px; color: #888; margin: 5px 0;">
+            ${isLeader ? '👑 Eres el líder' : '👤 Miembro'}
+          </p>
+          <p style="font-size: 11px; color: #888;">
+            👥 ${currentGroup.miembros.length} miembro(s)
+          </p>
+        </div>
+      `;
+
+      // Renderizar miembros
+      const membersDiv = document.getElementById('groupMembers');
+      membersDiv.innerHTML = currentGroup.miembros.map(memberId => {
+        const memberData = world.players && world.players[memberId];
+        const isMe = memberId === player.id;
+        const isLider = memberId === currentGroup.lider;
+        
+        return `
+          <div style="padding: 8px; background: ${isMe ? '#003366' : '#222'}; border: 1px solid ${isMe ? '#00aaff' : '#444'}; margin-bottom: 5px; border-radius: 3px;">
+            ${isLider ? '👑' : '👤'} <strong>${memberData?.nombre || memberId}</strong> ${isMe ? '(TÚ)' : ''}
+            <div style="font-size: 10px; color: #888;">
+              Nv.${memberData?.nivel || '?'} | ${memberData?.clase || 'Sobreviviente'}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      membersSection.style.display = 'block';
+      chatSection.style.display = 'block';
+
+      // Auto-scroll chat
+      const chatLog = document.getElementById('groupChatLog');
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function renderAvailableGroups(groups) {
+      const div = document.getElementById('availableGroups');
+      
+      if (!groups || groups.length === 0) {
+        div.innerHTML = '<em style="color: #888;">No hay grupos disponibles</em>';
+        return;
+      }
+
+      div.innerHTML = groups.map(g => `
+        <div style="padding: 12px; background: #222; border: 1px solid #444; margin-bottom: 10px; border-radius: 5px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: var(--green-bright); font-size: 13px;">${g.nombre}</strong>
+            ${g.tienePassword ? '<span style="color: #ffaa00; font-size: 11px;">🔒 Privado</span>' : '<span style="color: #888; font-size: 11px;">🔓 Público</span>'}
+          </div>
+          <div style="font-size: 11px; color: #888; margin-bottom: 8px;">
+            👑 Líder: ${g.lider} | 👥 Miembros: ${g.miembros}
+          </div>
+          <button onclick="joinGroup('${g.id}', ${g.tienePassword})" style="width: 100%; padding: 6px; background: #006600; border: 1px solid #00ff00; color: #00ff00; cursor: pointer; font-size: 11px;">
+            ➡️ UNIRSE
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function addGroupChatMessage(message) {
+      const chatLog = document.getElementById('groupChatLog');
+      if (!chatLog) return;
+
+      const msgDiv = document.createElement('div');
+      msgDiv.style.marginBottom = '5px';
+      msgDiv.style.color = message.startsWith('SISTEMA:') ? '#ffaa00' : '#00ff00';
+      msgDiv.textContent = message;
+      
+      chatLog.appendChild(msgDiv);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      // Limitar mensajes
+      while (chatLog.children.length > 50) {
+        chatLog.removeChild(chatLog.firstChild);
+      }
+    }
+
+    // ====================================
+    // SISTEMA DE MISIONES DE NPCs
+    // ====================================
+    function acceptNPCMission(npcId, missionType) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'npc:accept_mission',
+        npcId: npcId,
+        missionType: missionType
+      }));
+    }
+
+    function completeMission() {
+      if (!player.activeMission) {
+        showActionFeedback('No tienes ninguna misión activa', 'danger');
+        return;
+      }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({ type: 'npc:complete_mission' }));
+    }
+
+    function giveResourceToNPC(npcId, resource, cantidad = 1) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log('No conectado al servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'npc:give_resource',
+        npcId: npcId,
+        resource: resource,
+        cantidad: cantidad
+      }));
+    }
+
+    function showNPCMissions(npcId) {
+      const npc = world.npcs[npcId];
+      if (!npc || !npc.misionesDisponibles || npc.misionesDisponibles.length === 0) {
+        showActionFeedback('Este NPC no tiene misiones disponibles', 'info');
+        return;
+      }
+
+      const missionNames = {
+        espiar_refugio_central: '🔍 Espiar Refugio Central',
+        informar_movimientos: '📡 Informar Movimientos',
+        conseguir_componentes: '🔧 Conseguir Componentes',
+        investigar_radios: '📻 Investigar Radios',
+        espiar_comerciante: '👁️ Espiar al Comerciante',
+        revelar_secretos: '🔓 Revelar Secretos',
+        seguir_npc: '🕵️ Seguir a un NPC'
+      };
+
+      const missionButtons = npc.misionesDisponibles.map(mission => 
+        `<button onclick="acceptNPCMission('${npcId}', '${mission}')" style="width: 100%; padding: 10px; margin: 5px 0; background: #003366; border: 1px solid #00aaff; color: #00aaff; cursor: pointer; font-size: 12px; border-radius: 3px;">
+          ${missionNames[mission] || mission}
+        </button>`
+      ).join('');
+
+      const content = `
+        <div style="text-align: center;">
+          <h3 style="color: var(--green-bright);">Misiones de ${npc.nombre}</h3>
+          <p style="font-size: 12px; color: #888; margin: 15px 0;">
+            ${npc.dialogo}
+          </p>
+          ${missionButtons}
+        </div>
+      `;
+
+      document.getElementById('modal-content').innerHTML = content;
+      document.getElementById('custom-modal').style.display = 'flex';
+    }
+
+    function showGiveResourceMenu(npcId) {
+      const npc = world.npcs[npcId];
+      if (!npc) return;
+
+      const resources = ['comida', 'medicinas', 'materiales', 'armas'];
+      const resourceButtons = resources.map(resource => {
+        const cantidad = player.inventario[resource] || 0;
+        const disabled = cantidad === 0;
+        
+        return `<button 
+          onclick="giveResourceToNPC('${npcId}', '${resource}', 1)" 
+          ${disabled ? 'disabled' : ''}
+          style="width: 100%; padding: 10px; margin: 5px 0; background: ${disabled ? '#222' : '#006600'}; border: 1px solid ${disabled ? '#444' : '#00ff00'}; color: ${disabled ? '#666' : '#00ff00'}; cursor: ${disabled ? 'not-allowed' : 'pointer'}; font-size: 12px; border-radius: 3px;">
+          ${resource.toUpperCase()} (Tienes: ${cantidad})
+        </button>`;
+      }).join('');
+
+      const content = `
+        <div style="text-align: center;">
+          <h3 style="color: var(--green-bright);">Dar Recursos a ${npc.nombre}</h3>
+          <p style="font-size: 12px; color: #888; margin: 15px 0;">
+            Dar recursos mejora tu reputación con este NPC
+          </p>
+          ${resourceButtons}
+          <button onclick="closeModal()" style="width: 100%; padding: 10px; margin-top: 15px; background: #660000; border: 1px solid #ff0000; color: #ff0000; cursor: pointer; font-size: 12px; border-radius: 3px;">
+            CANCELAR
+          </button>
+        </div>
+      `;
+
+      document.getElementById('modal-content').innerHTML = content;
+      document.getElementById('custom-modal').style.display = 'flex';
+    }
+
+    // Actualizar al cambiar a pestaña de grupos
+    const originalSwitchTab = switchTab;
+    switchTab = function(tabName) {
+      originalSwitchTab(tabName);
+      
+      if (tabName === 'grupos') {
+        renderGroupPanel();
+        refreshGroupsList();
+      }
+    };
 
     console.log('🧟 Survival Zombie MVP cargado. Usa teclas rápidas: S=Scavenge, C=Combat, T=Trade, H=Hablar');
   </script>

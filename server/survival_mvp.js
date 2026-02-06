@@ -3890,6 +3890,453 @@ wss.on('connection', (ws) => {
 
             return;
         }
+
+        // ACEPTAR MISIÓN DE NPC
+        if (msg.type === 'npc:accept_mission') {
+            const npc = WORLD.npcs[msg.npcId];
+            const missionType = msg.missionType;
+
+            if (!npc || !npc.vivo) {
+                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                return;
+            }
+
+            if (!npc.misionesDisponibles || !npc.misionesDisponibles.includes(missionType)) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Esta misión no está disponible' }));
+                return;
+            }
+
+            // Configurar misiones según tipo
+            const missionConfig = {
+                espiar_refugio_central: {
+                    descripcion: 'Espía el Refugio Central durante 60 segundos',
+                    objetivo: 'espiar',
+                    target: 'refugio',
+                    duracion: 60,
+                    recompensa: { xp: 200, reputacion: 20, materiales: 15 }
+                },
+                informar_movimientos: {
+                    descripcion: 'Observa y reporta movimientos de NPCs',
+                    objetivo: 'informar',
+                    target: 'npcs',
+                    duracion: 45,
+                    recompensa: { xp: 150, reputacion: 15, comida: 10 }
+                },
+                conseguir_componentes: {
+                    descripcion: 'Consigue 3 componentes electrónicos',
+                    objetivo: 'recolectar',
+                    item: 'materiales',
+                    cantidad: 3,
+                    recompensa: { xp: 180, reputacion: 18, armas: 2 }
+                },
+                investigar_radios: {
+                    descripcion: 'Investiga transmisiones extrañas en el hospital',
+                    objetivo: 'explorar',
+                    target: 'hospital',
+                    recompensa: { xp: 220, reputacion: 25, medicinas: 8 }
+                },
+                espiar_comerciante: {
+                    descripcion: 'Espía a Jorge el Comerciante durante 30 segundos',
+                    objetivo: 'seguir_npc',
+                    target: 'jorge',
+                    duracion: 30,
+                    recompensa: { xp: 250, reputacion: 30, comida: 20 }
+                },
+                revelar_secretos: {
+                    descripcion: 'Descubre los secretos del Comandante Steel',
+                    objetivo: 'seguir_npc',
+                    target: 'comandante_steel',
+                    duracion: 40,
+                    recompensa: { xp: 300, reputacion: 35, armas: 5 }
+                },
+                seguir_npc: {
+                    descripcion: 'Sigue discretamente a un NPC aleatorio',
+                    objetivo: 'seguir_npc',
+                    target: Object.keys(WORLD.npcs)[Math.floor(Math.random() * Object.keys(WORLD.npcs).length)],
+                    duracion: 35,
+                    recompensa: { xp: 200, reputacion: 20, materiales: 10 }
+                }
+            };
+
+            const mission = missionConfig[missionType];
+            if (!mission) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Tipo de misión no reconocido' }));
+                return;
+            }
+
+            // Crear misión activa
+            player.activeMission = {
+                id: `mission_${Date.now()}`,
+                npcId: npc.id,
+                tipo: missionType,
+                ...mission,
+                inicioTimestamp: Date.now(),
+                progreso: 0
+            };
+
+            ws.send(JSON.stringify({
+                type: 'npc:mission_accepted',
+                mission: player.activeMission,
+                message: `Misión aceptada: ${mission.descripcion}`
+            }));
+
+            broadcast({
+                type: 'narrative',
+                text: `${player.nombre} ha aceptado una misión de ${npc.nombre}: ${mission.descripcion}`,
+                category: 'mision'
+            });
+
+            return;
+        }
+
+        // COMPLETAR MISIÓN DE NPC
+        if (msg.type === 'npc:complete_mission') {
+            if (!player.activeMission) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No tienes ninguna misión activa' }));
+                return;
+            }
+
+            const mission = player.activeMission;
+            const npc = WORLD.npcs[mission.npcId];
+
+            // Verificar si la misión está completa según tipo
+            let completa = false;
+            let mensajeError = '';
+
+            if (mission.objetivo === 'espiar' || mission.objetivo === 'seguir_npc') {
+                const tiempoTranscurrido = (Date.now() - mission.inicioTimestamp) / 1000;
+                if (tiempoTranscurrido >= mission.duracion) {
+                    completa = true;
+                } else {
+                    mensajeError = `Debes permanecer ${mission.duracion - Math.floor(tiempoTranscurrido)} segundos más`;
+                }
+            } else if (mission.objetivo === 'informar') {
+                completa = true; // Auto completa al reportar
+            } else if (mission.objetivo === 'recolectar') {
+                if (player.inventario[mission.item] >= mission.cantidad) {
+                    player.inventario[mission.item] -= mission.cantidad;
+                    completa = true;
+                } else {
+                    mensajeError = `Te faltan ${mission.cantidad - (player.inventario[mission.item] || 0)} ${mission.item}`;
+                }
+            } else if (mission.objetivo === 'explorar') {
+                if (player.locacion === mission.target) {
+                    completa = true;
+                } else {
+                    mensajeError = `Debes ir a: ${WORLD.locations[mission.target]?.nombre || mission.target}`;
+                }
+            }
+
+            if (!completa) {
+                ws.send(JSON.stringify({ type: 'error', error: mensajeError }));
+                return;
+            }
+
+            // Dar recompensas
+            if (mission.recompensa.xp) {
+                player.xp += mission.recompensa.xp;
+                updatePlayerStats(player, 'xp_ganado', mission.recompensa.xp);
+                checkLevelUp(player, ws);
+            }
+
+            if (mission.recompensa.reputacion && npc) {
+                const newRep = changeReputation(playerId, npc.id, mission.recompensa.reputacion);
+                ws.send(JSON.stringify({
+                    type: 'reputation:updated',
+                    npcId: npc.id,
+                    reputation: newRep,
+                    level: getReputationLevel(newRep)
+                }));
+            }
+
+            Object.keys(mission.recompensa).forEach(key => {
+                if (key !== 'xp' && key !== 'reputacion' && player.inventario.hasOwnProperty(key)) {
+                    player.inventario[key] += mission.recompensa[key];
+                }
+            });
+
+            delete player.activeMission;
+
+            ws.send(JSON.stringify({
+                type: 'npc:mission_completed',
+                message: `¡Misión completada! ${npc?.nombre || 'El NPC'} está satisfecho.`,
+                recompensas: mission.recompensa
+            }));
+
+            broadcast({
+                type: 'narrative',
+                text: `${player.nombre} ha completado la misión de ${npc?.nombre || 'un NPC'} con éxito.`,
+                category: 'mision'
+            });
+
+            broadcast({
+                type: 'world:state',
+                world: WORLD
+            });
+
+            return;
+        }
+
+        // DAR RECURSO A NPC
+        if (msg.type === 'npc:give_resource') {
+            const npc = WORLD.npcs[msg.npcId];
+            const resource = msg.resource; // 'comida', 'medicinas', 'materiales', 'armas'
+            const cantidad = msg.cantidad || 1;
+
+            if (!npc || !npc.vivo) {
+                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                return;
+            }
+
+            if (!player.inventario[resource] || player.inventario[resource] < cantidad) {
+                ws.send(JSON.stringify({ type: 'error', error: `No tienes suficiente ${resource}` }));
+                return;
+            }
+
+            player.inventario[resource] -= cantidad;
+
+            // Calcular mejora de reputación basada en el recurso
+            const reputationGain = {
+                comida: 5,
+                medicinas: 10,
+                materiales: 3,
+                armas: 15
+            };
+
+            const repGain = (reputationGain[resource] || 5) * cantidad;
+            const newRep = changeReputation(playerId, npc.id, repGain);
+
+            // Mejorar stats del NPC
+            if (resource === 'comida') {
+                npc.hambre = Math.min(100, npc.hambre + (15 * cantidad));
+                npc.moral = Math.min(100, npc.moral + (5 * cantidad));
+            } else if (resource === 'medicinas') {
+                npc.salud = Math.min(100, npc.salud + (30 * cantidad));
+                npc.moral = Math.min(100, npc.moral + (10 * cantidad));
+            } else if (resource === 'materiales' || resource === 'armas') {
+                npc.moral = Math.min(100, npc.moral + (8 * cantidad));
+            }
+
+            ws.send(JSON.stringify({
+                type: 'npc:resource_given',
+                npcId: npc.id,
+                resource,
+                cantidad,
+                message: `Le diste ${cantidad} ${resource} a ${npc.nombre}. ¡Reputación +${repGain}!`,
+                reputation: newRep,
+                level: getReputationLevel(newRep)
+            }));
+
+            broadcast({
+                type: 'narrative',
+                text: `${player.nombre} le dio ${cantidad} ${resource} a ${npc.nombre}.`,
+                category: 'comercio'
+            });
+
+            broadcast({
+                type: 'world:state',
+                world: WORLD
+            });
+
+            updatePlayerStats(player, 'items_dados', cantidad);
+
+            return;
+        }
+
+        // CREAR GRUPO
+        if (msg.type === 'group:create') {
+            const groupName = msg.groupName.trim();
+            const password = msg.password || null;
+
+            if (!groupName || groupName.length < 3) {
+                ws.send(JSON.stringify({ type: 'error', error: 'El nombre debe tener al menos 3 caracteres' }));
+                return;
+            }
+
+            if (player.grupoId) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Ya perteneces a un grupo' }));
+                return;
+            }
+
+            const groupId = `group_${Date.now()}`;
+            WORLD.groups[groupId] = {
+                id: groupId,
+                nombre: groupName,
+                lider: playerId,
+                miembros: [playerId],
+                password: password,
+                creado: Date.now(),
+                chat: []
+            };
+
+            player.grupoId = groupId;
+
+            ws.send(JSON.stringify({
+                type: 'group:created',
+                group: WORLD.groups[groupId],
+                message: `Grupo "${groupName}" creado con éxito`
+            }));
+
+            broadcast({
+                type: 'narrative',
+                text: `${player.nombre} ha creado el grupo "${groupName}"`,
+                category: 'grupo'
+            });
+
+            return;
+        }
+
+        // UNIRSE A GRUPO
+        if (msg.type === 'group:join') {
+            const groupId = msg.groupId;
+            const password = msg.password || null;
+            const group = WORLD.groups[groupId];
+
+            if (!group) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Grupo no encontrado' }));
+                return;
+            }
+
+            if (player.grupoId) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Ya perteneces a un grupo' }));
+                return;
+            }
+
+            if (group.password && group.password !== password) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Contraseña incorrecta' }));
+                return;
+            }
+
+            group.miembros.push(playerId);
+            player.grupoId = groupId;
+
+            // Notificar a todos los miembros del grupo
+            group.miembros.forEach(memberId => {
+                const memberWs = Array.from(connections.keys()).find(ws => connections.get(ws) === memberId);
+                if (memberWs && memberWs.readyState === 1) {
+                    memberWs.send(JSON.stringify({
+                        type: 'group:member_joined',
+                        group: group,
+                        newMember: player.nombre,
+                        message: `${player.nombre} se unió al grupo`
+                    }));
+                }
+            });
+
+            ws.send(JSON.stringify({
+                type: 'group:joined',
+                group: group,
+                message: `Te uniste al grupo "${group.nombre}"`
+            }));
+
+            return;
+        }
+
+        // SALIR DE GRUPO
+        if (msg.type === 'group:leave') {
+            if (!player.grupoId) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No perteneces a ningún grupo' }));
+                return;
+            }
+
+            const group = WORLD.groups[player.grupoId];
+            if (!group) {
+                delete player.grupoId;
+                return;
+            }
+
+            group.miembros = group.miembros.filter(id => id !== playerId);
+
+            // Si era el líder y quedan miembros, pasar liderazgo
+            if (group.lider === playerId && group.miembros.length > 0) {
+                group.lider = group.miembros[0];
+            }
+
+            // Si no quedan miembros, eliminar grupo
+            if (group.miembros.length === 0) {
+                delete WORLD.groups[player.grupoId];
+            } else {
+                // Notificar a los miembros restantes
+                group.miembros.forEach(memberId => {
+                    const memberWs = Array.from(connections.keys()).find(ws => connections.get(ws) === memberId);
+                    if (memberWs && memberWs.readyState === 1) {
+                        memberWs.send(JSON.stringify({
+                            type: 'group:member_left',
+                            group: group,
+                            leftMember: player.nombre,
+                            message: `${player.nombre} abandonó el grupo`
+                        }));
+                    }
+                });
+            }
+
+            delete player.grupoId;
+
+            ws.send(JSON.stringify({
+                type: 'group:left',
+                message: `Abandonaste el grupo "${group.nombre}"`
+            }));
+
+            return;
+        }
+
+        // CHAT DE GRUPO
+        if (msg.type === 'group:chat') {
+            if (!player.grupoId) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No perteneces a ningún grupo' }));
+                return;
+            }
+
+            const group = WORLD.groups[player.grupoId];
+            if (!group) {
+                delete player.grupoId;
+                return;
+            }
+
+            const chatMessage = {
+                jugador: player.nombre,
+                mensaje: msg.mensaje.trim(),
+                timestamp: Date.now()
+            };
+
+            group.chat.push(chatMessage);
+
+            // Limitar historial de chat
+            if (group.chat.length > 50) {
+                group.chat = group.chat.slice(-50);
+            }
+
+            // Enviar mensaje a todos los miembros del grupo
+            group.miembros.forEach(memberId => {
+                const memberWs = Array.from(connections.keys()).find(ws => connections.get(ws) === memberId);
+                if (memberWs && memberWs.readyState === 1) {
+                    memberWs.send(JSON.stringify({
+                        type: 'group:chat_message',
+                        message: chatMessage
+                    }));
+                }
+            });
+
+            return;
+        }
+
+        // LISTAR GRUPOS DISPONIBLES
+        if (msg.type === 'group:list') {
+            const groupsList = Object.values(WORLD.groups).map(g => ({
+                id: g.id,
+                nombre: g.nombre,
+                lider: WORLD.players[g.lider]?.nombre || 'Desconocido',
+                miembros: g.miembros.length,
+                tienePassword: !!g.password
+            }));
+
+            ws.send(JSON.stringify({
+                type: 'group:list_response',
+                groups: groupsList
+            }));
+
+            return;
+        }
     });
 
     ws.on('close', () => {
