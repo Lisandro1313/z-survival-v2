@@ -1511,12 +1511,19 @@
       
       if (soundEnabled) {
         playSound('success');
+        startAmbientMusic();
+      } else {
+        stopAmbientMusic();
       }
     }
     
     // Sistema de audio para sonidos reales
     const audioFiles = {};
-    let audioVolume = 0.85;
+    let audioVolume = 0.95;
+    
+    // 🎵 Música de fondo ambiente
+    let ambientMusic = null;
+    let ambientGain = null;
 
     function loadAudioFile(name, path) {
       const audio = new Audio(path);
@@ -1530,9 +1537,58 @@
     loadAudioFile('npc_despedida', '/sounds/DespedidaNpcMale.m4a');
     loadAudioFile('ataque_melee', '/sounds/AtacoMele.m4a');
     loadAudioFile('recibo_dano', '/sounds/ReciboDaño.m4a');
+    
+    // Iniciar música ambiente de miedo
+    function startAmbientMusic() {
+      if (!soundEnabled || !audioContext || ambientMusic) return;
+      
+      ambientGain = audioContext.createGain();
+      ambientGain.gain.value = 0.08; // Muy suave
+      ambientGain.connect(audioContext.destination);
+      
+      // Tono bajo constante (sensación de tensión)
+      const lowDrone = audioContext.createOscillator();
+      lowDrone.type = 'sine';
+      lowDrone.frequency.value = 55; // Nota A muy grave
+      lowDrone.connect(ambientGain);
+      lowDrone.start();
+      
+      // Tono medio que oscila (inquietud)
+      const midDrone = audioContext.createOscillator();
+      midDrone.type = 'triangle';
+      midDrone.frequency.value = 110;
+      const midLFO = audioContext.createOscillator();
+      midLFO.type = 'sine';
+      midLFO.frequency.value = 0.1; // Oscilación muy lenta
+      const midLFOGain = audioContext.createGain();
+      midLFOGain.gain.value = 5;
+      midLFO.connect(midLFOGain);
+      midLFOGain.connect(midDrone.frequency);
+      midDrone.connect(ambientGain);
+      midDrone.start();
+      midLFO.start();
+      
+      ambientMusic = { lowDrone, midDrone, midLFO };
+    }
+    
+    function stopAmbientMusic() {
+      if (ambientMusic) {
+        try {
+          ambientMusic.lowDrone.stop();
+          ambientMusic.midDrone.stop();
+          ambientMusic.midLFO.stop();
+        } catch(e) {}
+        ambientMusic = null;
+      }
+    }
 
     function playSound(type) {
       if (!soundEnabled) return;
+      
+      // Iniciar música ambiente si no está corriendo
+      if (!ambientMusic && audioContext) {
+        startAmbientMusic();
+      }
       
       // Intentar reproducir archivo de audio real primero
       if (audioFiles[type]) {
@@ -1578,13 +1634,41 @@
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
           break;
         case 'levelup':
-          // Sonido ascendente épico
-          oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-          oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.3);
-          oscillator.type = 'sine';
-          gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-          oscillator.stop(audioContext.currentTime + 0.3);
+          // Sonido ascendente épico mejorado
+          const osc1 = audioContext.createOscillator();
+          const osc2 = audioContext.createOscillator();
+          const osc3 = audioContext.createOscillator();
+          const levelGain = audioContext.createGain();
+          
+          osc1.type = 'sine';
+          osc2.type = 'sine';
+          osc3.type = 'triangle';
+          
+          // Armonía ascendente
+          osc1.frequency.setValueAtTime(400, audioContext.currentTime);
+          osc1.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.5);
+          
+          osc2.frequency.setValueAtTime(500, audioContext.currentTime + 0.1);
+          osc2.frequency.exponentialRampToValueAtTime(1400, audioContext.currentTime + 0.5);
+          
+          osc3.frequency.setValueAtTime(600, audioContext.currentTime + 0.2);
+          osc3.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.5);
+          
+          levelGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+          levelGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          levelGain.connect(audioContext.destination);
+          
+          osc1.connect(levelGain);
+          osc2.connect(levelGain);
+          osc3.connect(levelGain);
+          
+          osc1.start(audioContext.currentTime);
+          osc2.start(audioContext.currentTime + 0.1);
+          osc3.start(audioContext.currentTime + 0.2);
+          
+          osc1.stop(audioContext.currentTime + 0.5);
+          osc2.stop(audioContext.currentTime + 0.5);
+          osc3.stop(audioContext.currentTime + 0.5);
           return;
         case 'loot':
           // Sonido de pickup
@@ -1719,7 +1803,10 @@
         </div>
       `;
       
-      document.getElementById('refugioVisual').innerHTML = html;
+      const container = document.getElementById('refugioVisual');
+      if (container) {
+        container.innerHTML = html;
+      }
     }
     
     // ====================================
