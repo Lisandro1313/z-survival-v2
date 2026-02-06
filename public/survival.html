@@ -1677,7 +1677,9 @@
           oscillator.type = 'sine';
           gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
-          oscillator.stop(audioContext.currentTime + 0.08);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.08);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'craft':
           // Sonido de martillo
@@ -1685,7 +1687,9 @@
           oscillator.type = 'square';
           gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
-          oscillator.stop(audioContext.currentTime + 0.05);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.05);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'move':
           // Sonido sutil de paso
@@ -1693,7 +1697,9 @@
           oscillator.type = 'sine';
           gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.06);
-          oscillator.stop(audioContext.currentTime + 0.06);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.06);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'notification':
           // Ping suave
@@ -1701,7 +1707,9 @@
           oscillator.type = 'sine';
           gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12);
-          oscillator.stop(audioContext.currentTime + 0.12);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.12);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'death':
           // Sonido grave de muerte
@@ -1710,7 +1718,9 @@
           oscillator.type = 'sawtooth';
           gainNode.gain.setValueAtTime(0.18, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-          oscillator.stop(audioContext.currentTime + 0.4);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.4);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'achievement':
           // Fanfarria corta
@@ -1720,7 +1730,9 @@
           oscillator.type = 'sine';
           gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
-          oscillator.stop(audioContext.currentTime + 0.25);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.25);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
         case 'click':
           // Click UI
@@ -1728,12 +1740,16 @@
           oscillator.type = 'sine';
           gainNode.gain.setValueAtTime(0.06, audioContext.currentTime);
           gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.03);
-          oscillator.stop(audioContext.currentTime + 0.03);
+          try {
+            oscillator.stop(audioContext.currentTime + 0.03);
+          } catch(e) { /* oscillator ya detenido */ }
           return;
       }
       
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
+      try {
+        oscillator.stop(audioContext.currentTime + 0.2);
+      } catch(e) { /* oscillator ya detenido */ }
     }
     
     // ====================================
@@ -2197,6 +2213,72 @@
         case 'complejo': return '#8888ff';
         default: return '#888888';
       }
+    }
+
+    // Renderizar historial narrativo
+    function renderNarrativeHistory() {
+      const container = document.getElementById('narrative-events');
+      if (!container) return;
+
+      // Obtener eventos narrativos del mundo o jugador
+      let narrativeEvents = [];
+      
+      // Combinar eventos del mundo y del jugador
+      if (world && world.narrativeEvents && Array.isArray(world.narrativeEvents)) {
+        narrativeEvents = [...world.narrativeEvents];
+      }
+      if (player && player.narrativeHistory && Array.isArray(player.narrativeHistory)) {
+        narrativeEvents = [...narrativeEvents, ...player.narrativeHistory];
+      }
+
+      if (!narrativeEvents || narrativeEvents.length === 0) {
+        container.innerHTML = '<div class="empty-message">No hay eventos narrativos registrados aún...</div>';
+        return;
+      }
+
+      // Ordenar por timestamp (más reciente primero)
+      narrativeEvents.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      // Agrupar por tipo
+      const grouped = {};
+      narrativeEvents.forEach(event => {
+        const tipo = event.type || 'general';
+        if (!grouped[tipo]) grouped[tipo] = [];
+        grouped[tipo].push(event);
+      });
+
+      let html = '';
+      
+      // Renderizar cada grupo
+      Object.keys(grouped).forEach(tipo => {
+        const events = grouped[tipo];
+        const icon = getEventIcon(tipo);
+        const color = getEventColor(tipo);
+        
+        html += `
+          <div class="event-group">
+            <div class="event-group-header" style="color: ${color};">
+              ${icon} ${tipo.toUpperCase().replace('_', ' ')} (${events.length})
+            </div>
+        `;
+        
+        events.forEach(event => {
+          const timeAgo = event.timestamp ? getTimeAgo(event.timestamp) : 'hace un momento';
+          const description = event.description || event.texto || 'Evento sin descripción';
+          
+          html += `
+            <div class="event-item" style="border-left: 3px solid ${color};">
+              <span class="event-time">${timeAgo}</span>
+              <span class="event-icon">${icon}</span>
+              <span class="event-text">${description}</span>
+            </div>
+          `;
+        });
+        
+        html += `</div>`;
+      });
+
+      container.innerHTML = html;
     }
 
     function getTimeAgo(timestamp) {
