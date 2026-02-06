@@ -7,6 +7,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import survivalDB from './db/survivalDB.js';
+import { initialize as initializeMainDB } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3830,6 +3831,16 @@ setInterval(() => {
 // ====================================
 // INICIALIZAR SISTEMA DE MUNDO VIVO
 // ====================================
+
+// Inicializar base de datos principal (con NPCs y relaciones)
+(async function initializeDB() {
+    try {
+        await initializeMainDB();
+        console.log('✅ Base de datos inicializada');
+    } catch (error) {
+        console.error('❌ Error inicializando base de datos:', error);
+    }
+})();
 
 // Iniciar simulación del mundo (async para usar dynamic import)
 (async function initializeWorldSimulation() {
