@@ -8,7 +8,7 @@
  * - Iniciar aventuras en grupo
  */
 
-const db = require('../db');
+import db from '../db/index.js';
 
 class PartyManager {
     constructor() {
@@ -406,4 +406,4 @@ class PartyManager {
 // Singleton
 const partyManager = new PartyManager();
 
-module.exports = partyManager;
+export default partyManager;

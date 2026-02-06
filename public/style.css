@@ -1055,3 +1055,224 @@ body {
   color: #999;
   margin-top: 0.3rem;
 }
+
+/* ===== PARTY/GRUPO ===== */
+.party-invitation {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30, 30, 50, 0.98);
+  border: 2px solid #4ecdc4;
+  border-radius: 15px;
+  padding: 2rem;
+  min-width: 400px;
+  box-shadow: 0 0 30px rgba(78, 205, 196, 0.5);
+  z-index: 10000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.invitation-content h3 {
+  color: #4ecdc4;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.invitation-content p {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.invitation-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.invitation-buttons button {
+  padding: 0.8rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.invitation-buttons button:first-child {
+  background: linear-gradient(135deg, #4ecdc4, #44a79a);
+  color: white;
+}
+
+.invitation-buttons button:first-child:hover {
+  box-shadow: 0 0 15px rgba(78, 205, 196, 0.6);
+  transform: translateY(-2px);
+}
+
+.invitation-buttons button:last-child {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+  color: white;
+}
+
+.invitation-buttons button:last-child:hover {
+  box-shadow: 0 0 15px rgba(255, 107, 107, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ===== CHAT MEJORADO ===== */
+.whisper-message {
+  background: rgba(255, 105, 180, 0.1);
+  border-left: 3px solid #ff69b4;
+  padding: 0.5rem;
+  margin: 0.3rem 0;
+  border-radius: 5px;
+}
+
+.whisper-prefix {
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.party-message {
+  background: rgba(0, 255, 255, 0.1);
+  border-left: 3px solid #00ffff;
+  padding: 0.5rem;
+  margin: 0.3rem 0;
+  border-radius: 5px;
+}
+
+.party-prefix {
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+/* ===== VOTACIONES ===== */
+.vote-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(30, 30, 50, 0.98);
+  border: 2px solid #ffcc00;
+  border-radius: 15px;
+  padding: 2rem;
+  min-width: 450px;
+  max-width: 90%;
+  box-shadow: 0 0 30px rgba(255, 204, 0, 0.5);
+  z-index: 10000;
+  animation: slideIn 0.3s ease-out;
+}
+
+.vote-content h3 {
+  color: #ffcc00;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
+.vote-question {
+  text-align: center;
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  color: white;
+  font-weight: bold;
+}
+
+.vote-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.vote-option {
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(68, 167, 154, 0.2));
+  border: 2px solid #4ecdc4;
+  border-radius: 10px;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.vote-option:hover {
+  background: linear-gradient(135deg, rgba(78, 205, 196, 0.4), rgba(68, 167, 154, 0.4));
+  transform: translateX(5px);
+  box-shadow: 0 0 20px rgba(78, 205, 196, 0.5);
+}
+
+.vote-option:active {
+  transform: scale(0.95);
+}
+
+.vote-status {
+  text-align: center;
+  color: #ffcc00;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+/* ===== QUEST OBJECTIVES (nuevo sistema) ===== */
+.quest-objectives {
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.quest-objective {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.8rem;
+  border-radius: 8px;
+  border-left: 3px solid #4ecdc4;
+}
+
+.objective-name {
+  color: white;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.objective-progress {
+  position: relative;
+  background: rgba(0, 0, 0, 0.3);
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.objective-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: #2196F3;
+  transition: width 0.3s ease;
+  border-radius: 12px;
+}
+
+.objective-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}

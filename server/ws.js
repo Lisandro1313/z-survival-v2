@@ -8,9 +8,12 @@ import enemyManager from './world/enemies.js';
 import combatManager from './systems/combat.js';
 import inventoryManager from './systems/inventory.js';
 import questManager from './world/quests.js';
+import questSystem from './systems/questSystem.js';
 import worldSimulation from './world/simulation.js';
 import itemSystem from './systems/itemSystem.js';
 import globalEvents from './world/globalEvents.js';
+import partyManager from './managers/PartyManager.js';
+import dynamicQuests from './world/dynamicQuests.js';
 
 class GameWebSocket {
     constructor() {
@@ -146,6 +149,66 @@ class GameWebSocket {
 
             case 'solicitar_datos_jugador':
                 this.handleRefreshPlayerData(ws, data);
+                break;
+
+            // ===== PARTY/GRUPO =====
+            case 'crear_party':
+            case 'crear_grupo':
+                this.handleCreateParty(ws, data);
+                break;
+
+            case 'invitar_party':
+            case 'invitar_grupo':
+                this.handleInviteToParty(ws, data);
+                break;
+
+            case 'aceptar_invitacion_party':
+            case 'aceptar_party':
+                this.handleAcceptPartyInvite(ws, data);
+                break;
+
+            case 'rechazar_invitacion_party':
+            case 'rechazar_party':
+                this.handleRejectPartyInvite(ws, data);
+                break;
+
+            case 'abandonar_party':
+            case 'salir_grupo':
+                this.handleLeaveParty(ws, data);
+                break;
+
+            case 'expulsar_party':
+            case 'expulsar_miembro':
+                this.handleKickFromParty(ws, data);
+                break;
+
+            case 'obtener_party':
+            case 'obtener_grupo':
+                this.handleGetParty(ws, data);
+                break;
+
+            case 'obtener_invitaciones':
+                this.handleGetInvites(ws, data);
+                break;
+
+            // ===== CHAT AVANZADO =====
+            case 'whisper':
+            case 'mensaje_privado':
+                this.handleWhisper(ws, data);
+                break;
+
+            case 'chat_party':
+            case 'chat_grupo':
+                this.handlePartyChat(ws, data);
+                break;
+
+            // ===== VOTACIONES =====
+            case 'iniciar_votacion':
+                this.handleStartVote(ws, data);
+                break;
+
+            case 'votar':
+                this.handleVote(ws, data);
                 break;
 
             default:
@@ -528,18 +591,65 @@ class GameWebSocket {
         const { playerId } = data;
         const player = db.prepare('SELECT lugar_actual FROM players WHERE id = ?').get(playerId);
 
+        // Quests estáticas (de la DB)
         const available = questManager.getAvailableQuests(player.lugar_actual, playerId);
         const active = questManager.getActiveQuests(playerId);
 
+        // Quests dinámicas (del mundo vivo)
+        const dynamicAvailable = dynamicQuests.getActiveQuests().filter(q =>
+            q.status === 'active' && !q.acceptedBy
+        );
+
+        // Combinar quests disponibles
+        const allAvailable = [
+            ...available,
+            ...dynamicAvailable.map(q => ({
+                id: q.id,
+                titulo: q.title,
+                descripcion: q.description,
+                tipo: q.type,
+                objetivos: q.objectives,
+                recompensas: q.rewards,
+                recompensa_oro: q.rewards?.oro || 0,
+                recompensa_exp: q.rewards?.xp || 0,
+                isDynamic: true,
+                npcsInvolved: q.npcsInvolved
+            }))
+        ];
+
         ws.send(JSON.stringify({
             tipo: 'quests',
-            disponibles: available,
+            disponibles: allAvailable,
             activas: active
         }));
     }
 
     handleAcceptQuest(ws, data) {
         const { playerId, questId } = data;
+
+        // Verificar si es una quest dinámica
+        const dynamicQuest = dynamicQuests.getQuestById(questId);
+        if (dynamicQuest) {
+            const success = dynamicQuests.acceptQuest(questId, playerId);
+            if (success) {
+                ws.send(JSON.stringify({
+                    tipo: 'quest_aceptada',
+                    quest: {
+                        id: dynamicQuest.id,
+                        titulo: dynamicQuest.title,
+                        descripcion: dynamicQuest.description
+                    },
+                    mensaje: `Misión aceptada: ${dynamicQuest.title}`
+                }));
+                this.handleGetQuests(ws, { playerId });
+                return;
+            } else {
+                ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No se pudo aceptar la misión' }));
+                return;
+            }
+        }
+
+        // Quest estática
         const result = questManager.acceptQuest(playerId, questId);
 
         if (!result.success) {
@@ -558,6 +668,48 @@ class GameWebSocket {
 
     handleCompleteQuest(ws, data) {
         const { playerId, questId } = data;
+
+        // Verificar si es una quest dinámica
+        const dynamicQuest = dynamicQuests.getQuestById(questId);
+        if (dynamicQuest) {
+            const result = dynamicQuests.completeQuest(questId, playerId, true);
+
+            if (!result.success) {
+                ws.send(JSON.stringify({ tipo: 'error', mensaje: result.message }));
+                return;
+            }
+
+            // Dar recompensas
+            if (result.rewards) {
+                if (result.rewards.oro) {
+                    db.prepare('UPDATE players SET oro = oro + ? WHERE id = ?')
+                        .run(result.rewards.oro, playerId);
+                }
+                if (result.rewards.xp) {
+                    statsManager.addExperience(playerId, result.rewards.xp);
+                }
+            }
+
+            ws.send(JSON.stringify({
+                tipo: 'quest_completada',
+                quest: {
+                    id: result.quest.id,
+                    titulo: result.quest.title
+                },
+                recompensas: {
+                    oro: result.rewards?.oro || 0,
+                    exp: result.rewards?.xp || 0
+                },
+                mensaje: result.message
+            }));
+
+            // Actualizar jugador
+            this.handleRequestState(ws, { playerId });
+            this.handleGetQuests(ws, { playerId });
+            return;
+        }
+
+        // Quest estática
         const result = questManager.completeQuest(playerId, questId);
 
         if (!result.success) {
@@ -698,6 +850,467 @@ class GameWebSocket {
             tipo: 'estado_mundo',
             mundo: worldState
         }));
+    }
+
+    // ===== PARTY/GRUPO HANDLERS =====
+
+    handleCreateParty(ws, data) {
+        const { playerId } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        if (!player) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        const result = partyManager.createParty(playerId, player.alias);
+
+        if (!result.success) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: result.error }));
+            return;
+        }
+
+        ws.send(JSON.stringify({
+            tipo: 'party_creado',
+            party: result.party
+        }));
+    }
+
+    handleInviteToParty(ws, data) {
+        const { playerId, targetAlias } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        if (!player) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        // Buscar el jugador objetivo
+        const target = db.prepare('SELECT id, alias FROM players WHERE alias = ?').get(targetAlias);
+
+        if (!target) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        const party = partyManager.getPlayerParty(playerId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No estás en ningún grupo' }));
+            return;
+        }
+
+        const result = partyManager.invitePlayer(party.id, target.id, target.alias, playerId);
+
+        if (!result.success) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: result.error }));
+            return;
+        }
+
+        // Notificar al jugador que invitó
+        ws.send(JSON.stringify({
+            tipo: 'invitacion_enviada',
+            targetAlias: target.alias
+        }));
+
+        // Notificar al jugador invitado
+        const targetWs = this.clients.get(target.id);
+        if (targetWs) {
+            targetWs.send(JSON.stringify({
+                tipo: 'invitacion_party',
+                partyId: party.id,
+                liderNombre: player.alias,
+                mensaje: `${player.alias} te invita a unirte a su grupo`
+            }));
+        }
+    }
+
+    handleAcceptPartyInvite(ws, data) {
+        const { playerId, partyId } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        if (!player) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        const result = partyManager.acceptInvite(partyId, playerId, player.alias);
+
+        if (!result.success) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: result.error }));
+            return;
+        }
+
+        // Notificar al jugador que aceptó
+        ws.send(JSON.stringify({
+            tipo: 'party_unido',
+            party: result.party
+        }));
+
+        // Notificar a todos los miembros del party
+        result.party.miembros.forEach(member => {
+            if (member.id !== playerId) {
+                const memberWs = this.clients.get(member.id);
+                if (memberWs) {
+                    memberWs.send(JSON.stringify({
+                        tipo: 'jugador_unio_party',
+                        jugador: player.alias,
+                        party: result.party
+                    }));
+                }
+            }
+        });
+    }
+
+    handleRejectPartyInvite(ws, data) {
+        const { playerId, partyId } = data;
+
+        const result = partyManager.rejectInvite(partyId, playerId);
+
+        ws.send(JSON.stringify({
+            tipo: 'invitacion_rechazada',
+            success: result.success
+        }));
+    }
+
+    handleLeaveParty(ws, data) {
+        const { playerId } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        const party = partyManager.getPlayerParty(playerId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No estás en ningún grupo' }));
+            return;
+        }
+
+        const result = partyManager.leaveParty(playerId);
+
+        if (!result.success) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: result.error }));
+            return;
+        }
+
+        // Notificar al jugador que salió
+        ws.send(JSON.stringify({
+            tipo: 'party_abandonado',
+            disbanded: result.disbanded
+        }));
+
+        // Si el party no se disolvió, notificar a los demás miembros
+        if (!result.disbanded && result.party) {
+            result.party.miembros.forEach(member => {
+                const memberWs = this.clients.get(member.id);
+                if (memberWs) {
+                    memberWs.send(JSON.stringify({
+                        tipo: 'jugador_abandono_party',
+                        jugador: player.alias,
+                        party: result.party
+                    }));
+                }
+            });
+        }
+    }
+
+    handleKickFromParty(ws, data) {
+        const { playerId, targetAlias } = data;
+        const party = partyManager.getPlayerParty(playerId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No estás en ningún grupo' }));
+            return;
+        }
+
+        const target = db.prepare('SELECT id, alias FROM players WHERE alias = ?').get(targetAlias);
+
+        if (!target) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        const result = partyManager.kickPlayer(party.id, target.id, playerId);
+
+        if (!result.success) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: result.error }));
+            return;
+        }
+
+        // Notificar al líder
+        ws.send(JSON.stringify({
+            tipo: 'jugador_expulsado',
+            targetAlias: target.alias,
+            party: result.party
+        }));
+
+        // Notificar al jugador expulsado
+        const targetWs = this.clients.get(target.id);
+        if (targetWs) {
+            targetWs.send(JSON.stringify({
+                tipo: 'expulsado_party',
+                mensaje: 'Has sido expulsado del grupo'
+            }));
+        }
+
+        // Notificar a los demás miembros
+        result.party.miembros.forEach(member => {
+            if (member.id !== playerId) {
+                const memberWs = this.clients.get(member.id);
+                if (memberWs) {
+                    memberWs.send(JSON.stringify({
+                        tipo: 'jugador_expulsado_party',
+                        jugador: target.alias,
+                        party: result.party
+                    }));
+                }
+            }
+        });
+    }
+
+    handleGetParty(ws, data) {
+        const { playerId } = data;
+        const party = partyManager.getPlayerParty(playerId);
+        const invites = partyManager.getPendingInvites(playerId);
+
+        ws.send(JSON.stringify({
+            tipo: 'info_party',
+            party: party,
+            invitaciones: invites
+        }));
+    }
+
+    handleGetInvites(ws, data) {
+        const { playerId } = data;
+        const invites = partyManager.getPendingInvites(playerId);
+
+        ws.send(JSON.stringify({
+            tipo: 'lista_invitaciones',
+            invitaciones: invites
+        }));
+    }
+
+    // ===== CHAT AVANZADO =====
+
+    handleWhisper(ws, data) {
+        const { playerId, targetAlias, mensaje } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        if (!player) return;
+
+        const target = db.prepare('SELECT id FROM players WHERE alias = ?').get(targetAlias);
+
+        if (!target) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+            return;
+        }
+
+        const targetWs = this.clients.get(target.id);
+
+        if (!targetWs) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no está conectado' }));
+            return;
+        }
+
+        // Enviar mensaje al destinatario
+        targetWs.send(JSON.stringify({
+            tipo: 'whisper_recibido',
+            de: player.alias,
+            mensaje: mensaje,
+            timestamp: new Date().toISOString()
+        }));
+
+        // Confirmar al emisor
+        ws.send(JSON.stringify({
+            tipo: 'whisper_enviado',
+            a: targetAlias,
+            mensaje: mensaje,
+            timestamp: new Date().toISOString()
+        }));
+    }
+
+    handlePartyChat(ws, data) {
+        const { playerId, mensaje } = data;
+        const player = db.prepare('SELECT alias FROM players WHERE id = ?').get(playerId);
+
+        if (!player) return;
+
+        const party = partyManager.getPlayerParty(playerId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No estás en un grupo' }));
+            return;
+        }
+
+        // Enviar mensaje a todos los miembros del party
+        party.miembros.forEach(member => {
+            const memberWs = this.clients.get(member.id);
+            if (memberWs) {
+                memberWs.send(JSON.stringify({
+                    tipo: 'mensaje_party',
+                    autor: player.alias,
+                    mensaje: mensaje,
+                    timestamp: new Date().toISOString()
+                }));
+            }
+        });
+    }
+
+    // ===== VOTACIONES =====
+
+    handleStartVote(ws, data) {
+        const { playerId, pregunta, opciones, tipo } = data;
+        const player = db.prepare('SELECT alias, lugar_actual FROM players WHERE id = ?').get(playerId);
+
+        if (!player) return;
+
+        const party = partyManager.getPlayerParty(playerId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Solo puedes iniciar votaciones en grupo' }));
+            return;
+        }
+
+        if (party.lider !== playerId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Solo el líder puede iniciar votaciones' }));
+            return;
+        }
+
+        // Crear votación
+        const voteId = `vote_${Date.now()}_${playerId}`;
+        const votacion = {
+            id: voteId,
+            partyId: party.id,
+            pregunta: pregunta,
+            opciones: opciones,
+            tipo: tipo || 'simple', // simple, unanime, mayoria
+            votos: {},
+            iniciada: new Date(),
+            completada: false
+        };
+
+        // Guardar en memoria (podrías guardar en DB si quieres persistencia)
+        if (!this.activeVotes) this.activeVotes = new Map();
+        this.activeVotes.set(voteId, votacion);
+
+        // Enviar votación a todos los miembros
+        party.miembros.forEach(member => {
+            const memberWs = this.clients.get(member.id);
+            if (memberWs) {
+                memberWs.send(JSON.stringify({
+                    tipo: 'votacion_iniciada',
+                    votacion: {
+                        id: voteId,
+                        pregunta: pregunta,
+                        opciones: opciones,
+                        tipo: tipo
+                    }
+                }));
+            }
+        });
+    }
+
+    handleVote(ws, data) {
+        const { playerId, voteId, opcion } = data;
+
+        if (!this.activeVotes) this.activeVotes = new Map();
+
+        const votacion = this.activeVotes.get(voteId);
+
+        if (!votacion) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Votación no encontrada' }));
+            return;
+        }
+
+        if (votacion.completada) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Votación ya completada' }));
+            return;
+        }
+
+        const party = partyManager.getPartyData(votacion.partyId);
+
+        if (!party) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Grupo no encontrado' }));
+            return;
+        }
+
+        // Verificar que el jugador esté en el party
+        const isMember = party.miembros.some(m => m.id === playerId);
+
+        if (!isMember) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'No eres miembro del grupo' }));
+            return;
+        }
+
+        // Registrar voto
+        votacion.votos[playerId] = opcion;
+
+        // Contar votos
+        const voteCounts = {};
+        Object.values(votacion.votos).forEach(voto => {
+            voteCounts[voto] = (voteCounts[voto] || 0) + 1;
+        });
+
+        const totalVotos = Object.keys(votacion.votos).length;
+        const totalMiembros = party.miembros.length;
+
+        // Confirmar voto al jugador
+        ws.send(JSON.stringify({
+            tipo: 'voto_registrado',
+            voteId: voteId,
+            opcion: opcion
+        }));
+
+        // Notificar progreso a todos
+        party.miembros.forEach(member => {
+            const memberWs = this.clients.get(member.id);
+            if (memberWs) {
+                memberWs.send(JSON.stringify({
+                    tipo: 'votacion_progreso',
+                    voteId: voteId,
+                    votos: totalVotos,
+                    total: totalMiembros
+                }));
+            }
+        });
+
+        // Verificar si todos votaron
+        if (totalVotos === totalMiembros) {
+            // Determinar ganador según tipo de votación
+            let resultado = null;
+
+            if (votacion.tipo === 'unanime') {
+                const primeraOpcion = Object.values(votacion.votos)[0];
+                const esUnanime = Object.values(votacion.votos).every(v => v === primeraOpcion);
+                resultado = esUnanime ? { aprobado: true, opcion: primeraOpcion } : { aprobado: false };
+            } else {
+                // Mayoría simple
+                let maxVotos = 0;
+                let opcionGanadora = null;
+
+                for (const [opcion, count] of Object.entries(voteCounts)) {
+                    if (count > maxVotos) {
+                        maxVotos = count;
+                        opcionGanadora = opcion;
+                    }
+                }
+
+                resultado = { aprobado: true, opcion: opcionGanadora, votos: voteCounts };
+            }
+
+            votacion.completada = true;
+            votacion.resultado = resultado;
+
+            // Notificar resultado a todos
+            party.miembros.forEach(member => {
+                const memberWs = this.clients.get(member.id);
+                if (memberWs) {
+                    memberWs.send(JSON.stringify({
+                        tipo: 'votacion_completada',
+                        voteId: voteId,
+                        resultado: resultado
+                    }));
+                }
+            });
+        }
     }
 }
 

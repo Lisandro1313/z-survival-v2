@@ -222,6 +222,77 @@ function handleServerMessage(message) {
             displayWorldState(data.mundo);
             break;
 
+        // PARTY/GRUPO
+        case 'party_creado':
+            addActionLog('Grupo creado exitosamente', 'success');
+            break;
+
+        case 'invitacion_party':
+            handlePartyInvitation(data);
+            break;
+
+        case 'invitacion_enviada':
+            addActionLog(`Invitación enviada a ${data.targetAlias}`, 'success');
+            break;
+
+        case 'party_unido':
+            addActionLog('Te has unido al grupo', 'success');
+            break;
+
+        case 'jugador_unio_party':
+            addActionLog(`${data.jugador} se unió al grupo`, 'info');
+            break;
+
+        case 'party_abandonado':
+            addActionLog('Has abandonado el grupo', 'info');
+            break;
+
+        case 'jugador_abandono_party':
+            addActionLog(`${data.jugador} abandonó el grupo`, 'info');
+            break;
+
+        case 'jugador_expulsado':
+            addActionLog(`${data.targetAlias} fue expulsado del grupo`, 'info');
+            break;
+
+        case 'expulsado_party':
+            addActionLog(data.mensaje, 'failure');
+            break;
+
+        case 'info_party':
+            displayPartyInfo(data);
+            break;
+
+        // CHAT AVANZADO
+        case 'whisper_recibido':
+            addWhisperMessage(data.de, data.mensaje, false);
+            break;
+
+        case 'whisper_enviado':
+            addWhisperMessage(data.a, data.mensaje, true);
+            break;
+
+        case 'mensaje_party':
+            addPartyMessage(data.autor, data.mensaje);
+            break;
+
+        // VOTACIONES
+        case 'votacion_iniciada':
+            handleVotacionIniciada(data.votacion);
+            break;
+
+        case 'voto_registrado':
+            addActionLog('Voto registrado', 'success');
+            break;
+
+        case 'votacion_progreso':
+            updateVotacionProgreso(data);
+            break;
+
+        case 'votacion_completada':
+            handleVotacionCompletada(data);
+            break;
+
         case 'error':
             addActionLog(data.mensaje, 'failure');
             break;
@@ -479,10 +550,16 @@ function setupChatForm() {
 
         if (mensaje.length === 0) return;
 
-        sendMessage('chat', {
-            playerId: gameState.player.id,
-            mensaje
-        });
+        // Comandos especiales
+        if (mensaje.startsWith('/')) {
+            handleChatCommand(mensaje);
+        } else {
+            // Chat normal (global)
+            sendMessage('chat', {
+                playerId: gameState.player.id,
+                mensaje
+            });
+        }
 
         chatInput.value = '';
     });
@@ -870,7 +947,7 @@ function createQuestCard(quest, state) {
 
     const type = document.createElement('div');
     type.className = 'quest-type';
-    type.textContent = quest.tipo;
+    type.textContent = quest.tipo || 'Misión';
 
     header.appendChild(title);
     header.appendChild(type);
@@ -883,24 +960,69 @@ function createQuestCard(quest, state) {
     card.appendChild(description);
 
     // Progress bar for active quests
-    if (state === 'active' && quest.progreso !== undefined) {
-        const progressDiv = document.createElement('div');
-        progressDiv.className = 'quest-progress';
+    if (state === 'active' && quest.progreso) {
+        // Manejar progreso como array (nuevo sistema V2)
+        if (Array.isArray(quest.progreso)) {
+            const objectivesDiv = document.createElement('div');
+            objectivesDiv.className = 'quest-objectives';
 
-        const progressBar = document.createElement('div');
-        progressBar.className = 'quest-progress-bar';
-        const percentage = (quest.progreso / quest.objetivo) * 100;
-        progressBar.style.width = `${percentage}%`;
-        progressBar.textContent = `${quest.progreso}/${quest.objetivo}`;
+            quest.progreso.forEach((prog, index) => {
+                const objDiv = document.createElement('div');
+                objDiv.className = 'quest-objective';
 
-        progressDiv.appendChild(progressBar);
-        card.appendChild(progressDiv);
+                const objectiveName = quest.objetivos && quest.objetivos[index]
+                    ? quest.objetivos[index].descripcion || prog.objetivo
+                    : prog.objetivo;
+
+                const percentage = prog.requerido > 0 ? (prog.actual / prog.requerido) * 100 : 0;
+                const isComplete = prog.actual >= prog.requerido;
+
+                objDiv.innerHTML = `
+                    <div class="objective-name">${isComplete ? '✓' : '○'} ${objectiveName}</div>
+                    <div class="objective-progress">
+                        <div class="objective-bar" style="width: ${percentage}%; background: ${isComplete ? '#4CAF50' : '#2196F3'}"></div>
+                        <span class="objective-text">${prog.actual}/${prog.requerido}</span>
+                    </div>
+                `;
+
+                objectivesDiv.appendChild(objDiv);
+            });
+
+            card.appendChild(objectivesDiv);
+        }
+        // Sistema antiguo (compatibilidad)
+        else if (typeof quest.progreso === 'number') {
+            const progressDiv = document.createElement('div');
+            progressDiv.className = 'quest-progress';
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'quest-progress-bar';
+            const percentage = (quest.progreso / quest.objetivo) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressBar.textContent = `${quest.progreso}/${quest.objetivo}`;
+
+            progressDiv.appendChild(progressBar);
+            card.appendChild(progressDiv);
+        }
     }
 
     // Rewards
     const rewards = document.createElement('div');
     rewards.className = 'quest-rewards';
-    rewards.innerHTML = `💰 ${quest.recompensa_oro} oro | ⭐ ${quest.recompensa_exp} EXP`;
+
+    // Manejar diferentes formatos de recompensas
+    let goldReward = 0;
+    let expReward = 0;
+
+    if (quest.recompensas) {
+        goldReward = quest.recompensas.oro || quest.recompensas.gold || 0;
+        expReward = quest.recompensas.experiencia || quest.recompensas.exp || 0;
+    } else {
+        goldReward = quest.recompensa_oro || 0;
+        expReward = quest.recompensa_exp || 0;
+    }
+
+    rewards.innerHTML = `💰 ${goldReward} oro | ⭐ ${expReward} EXP`;
     card.appendChild(rewards);
 
     // Actions
@@ -911,14 +1033,25 @@ function createQuestCard(quest, state) {
         const acceptBtn = document.createElement('button');
         acceptBtn.className = 'quest-btn accept';
         acceptBtn.textContent = 'Aceptar';
-        acceptBtn.onclick = () => acceptQuest(quest.id);
+        acceptBtn.onclick = () => acceptQuest(quest.id || quest.quest_id);
         actions.appendChild(acceptBtn);
-    } else if (state === 'active' && quest.progreso >= quest.objetivo) {
-        const completeBtn = document.createElement('button');
-        completeBtn.className = 'quest-btn complete';
-        completeBtn.textContent = 'Completar';
-        completeBtn.onclick = () => completeQuest(quest.id);
-        actions.appendChild(completeBtn);
+    } else if (state === 'active') {
+        // Verificar si todos los objetivos están completos
+        let allComplete = false;
+
+        if (Array.isArray(quest.progreso)) {
+            allComplete = quest.progreso.every(p => p.actual >= p.requerido);
+        } else {
+            allComplete = quest.progreso >= quest.objetivo;
+        }
+
+        if (allComplete) {
+            const completeBtn = document.createElement('button');
+            completeBtn.className = 'quest-btn complete';
+            completeBtn.textContent = 'Recibir Recompensa';
+            completeBtn.onclick = () => completeQuest(quest.quest_id || quest.id);
+            actions.appendChild(completeBtn);
+        }
     }
 
     if (actions.children.length > 0) {
@@ -972,14 +1105,14 @@ function displayCreateQuestForm() {
 function acceptQuest(questId) {
     sendMessage('aceptar_mision', {
         playerId: gameState.player.id,
-        misionId: questId
+        questId: questId
     });
 }
 
 function completeQuest(questId) {
     sendMessage('completar_mision', {
         playerId: gameState.player.id,
-        misionId: questId
+        questId: questId
     });
 }
 
@@ -1237,4 +1370,291 @@ function getTimeAgo(timestamp) {
     if (minutes < 60) return `hace ${minutes} minuto${minutes > 1 ? 's' : ''}`;
     const hours = Math.floor(minutes / 60);
     return `hace ${hours} hora${hours > 1 ? 's' : ''}`;
+}
+
+// ===== PARTY/GRUPO =====
+function createParty() {
+    sendMessage('crear_party', {
+        playerId: gameState.player.id
+    });
+}
+
+function inviteToParty(targetAlias) {
+    sendMessage('invitar_party', {
+        playerId: gameState.player.id,
+        targetAlias: targetAlias
+    });
+}
+
+function acceptPartyInvite(partyId) {
+    sendMessage('aceptar_invitacion_party', {
+        playerId: gameState.player.id,
+        partyId: partyId
+    });
+}
+
+function rejectPartyInvite(partyId) {
+    sendMessage('rechazar_invitacion_party', {
+        playerId: gameState.player.id,
+        partyId: partyId
+    });
+}
+
+function leaveParty() {
+    sendMessage('abandonar_party', {
+        playerId: gameState.player.id
+    });
+}
+
+function kickFromParty(targetAlias) {
+    sendMessage('expulsar_party', {
+        playerId: gameState.player.id,
+        targetAlias: targetAlias
+    });
+}
+
+function getPartyInfo() {
+    sendMessage('obtener_party', {
+        playerId: gameState.player.id
+    });
+}
+
+function handlePartyInvitation(data) {
+    // Mostrar notificación de invitación
+    const notification = document.createElement('div');
+    notification.className = 'party-invitation';
+    notification.innerHTML = `
+        <div class="invitation-content">
+            <h3>📨 Invitación a Grupo</h3>
+            <p>${data.mensaje}</p>
+            <div class="invitation-buttons">
+                <button onclick="acceptPartyInvite('${data.partyId}')">Aceptar</button>
+                <button onclick="rejectPartyInvite('${data.partyId}')">Rechazar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-cerrar después de 30 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 30000);
+}
+
+function displayPartyInfo(data) {
+    // Si hay party, actualizar UI
+    if (data.party) {
+        addActionLog(`Grupo: ${data.party.miembros.length}/${data.party.max_miembros} miembros`, 'info');
+        data.party.miembros.forEach(member => {
+            addActionLog(`  - ${member.nombre} ${member.rol === 'lider' ? '👑' : ''}`, 'info');
+        });
+    } else {
+        addActionLog('No estás en ningún grupo', 'info');
+    }
+
+    // Mostrar invitaciones pendientes
+    if (data.invitaciones && data.invitaciones.length > 0) {
+        addActionLog(`Tienes ${data.invitaciones.length} invitación(es) pendiente(s)`, 'info');
+    }
+}
+
+// ===== CHAT AVANZADO =====
+function sendWhisper(targetAlias, mensaje) {
+    sendMessage('whisper', {
+        playerId: gameState.player.id,
+        targetAlias: targetAlias,
+        mensaje: mensaje
+    });
+}
+
+function sendPartyChat(mensaje) {
+    sendMessage('chat_party', {
+        playerId: gameState.player.id,
+        mensaje: mensaje
+    });
+}
+
+function addWhisperMessage(otherPlayer, mensaje, isSent) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message whisper-message';
+
+    const prefix = isSent ? `[Susurro a ${otherPlayer}]` : `[Susurro de ${otherPlayer}]`;
+
+    messageDiv.innerHTML = `
+        <span class="whisper-prefix" style="color: #ff69b4;">${prefix}</span>
+        <span class="message-text">${mensaje}</span>
+    `;
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addPartyMessage(autor, mensaje) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'chat-message party-message';
+
+    messageDiv.innerHTML = `
+        <span class="party-prefix" style="color: #00ffff;">[Grupo]</span>
+        <span class="author" style="color: #ffff00;">${autor}:</span>
+        <span class="message-text">${mensaje}</span>
+    `;
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// ===== VOTACIONES =====
+let currentVote = null;
+
+function startVote(pregunta, opciones, tipo = 'simple') {
+    sendMessage('iniciar_votacion', {
+        playerId: gameState.player.id,
+        pregunta: pregunta,
+        opciones: opciones,
+        tipo: tipo
+    });
+}
+
+function vote(voteId, opcion) {
+    sendMessage('votar', {
+        playerId: gameState.player.id,
+        voteId: voteId,
+        opcion: opcion
+    });
+}
+
+function handleVotacionIniciada(votacion) {
+    currentVote = votacion;
+
+    // Crear modal de votación
+    const voteModal = document.createElement('div');
+    voteModal.className = 'vote-modal';
+    voteModal.id = `vote-${votacion.id}`;
+
+    let optionsHtml = '';
+    votacion.opciones.forEach((opcion, index) => {
+        optionsHtml += `<button class="vote-option" onclick="vote('${votacion.id}', '${opcion}')">${opcion}</button>`;
+    });
+
+    voteModal.innerHTML = `
+        <div class="vote-content">
+            <h3>📊 Votación del Grupo</h3>
+            <p class="vote-question">${votacion.pregunta}</p>
+            <div class="vote-options">
+                ${optionsHtml}
+            </div>
+            <p class="vote-status" id="vote-status-${votacion.id}">Esperando votos...</p>
+        </div>
+    `;
+
+    document.body.appendChild(voteModal);
+}
+
+function updateVotacionProgreso(data) {
+    const statusElement = document.getElementById(`vote-status-${data.voteId}`);
+    if (statusElement) {
+        statusElement.textContent = `Votos: ${data.votos}/${data.total}`;
+    }
+}
+
+function handleVotacionCompletada(data) {
+    const voteModal = document.getElementById(`vote-${data.voteId}`);
+
+    if (voteModal) {
+        // Mostrar resultado
+        const resultText = data.resultado.aprobado
+            ? `✅ Resultado: ${data.resultado.opcion}`
+            : '❌ Votación rechazada (no hubo unanimidad)';
+
+        addActionLog(resultText, data.resultado.aprobado ? 'success' : 'failure');
+
+        // Cerrar modal después de 5 segundos
+        setTimeout(() => {
+            if (voteModal.parentNode) {
+                voteModal.parentNode.removeChild(voteModal);
+            }
+        }, 5000);
+    }
+
+    currentVote = null;
+}
+
+// ===== COMANDOS DE CHAT =====
+function handleChatCommand(comando) {
+    const parts = comando.split(' ');
+    const cmd = parts[0].toLowerCase();
+
+    switch (cmd) {
+        case '/w':
+        case '/whisper':
+        case '/mp':
+            // /w <jugador> <mensaje>
+            if (parts.length < 3) {
+                addActionLog('Uso: /w <jugador> <mensaje>', 'failure');
+                return;
+            }
+            const targetAlias = parts[1];
+            const whisperMsg = parts.slice(2).join(' ');
+            sendWhisper(targetAlias, whisperMsg);
+            break;
+
+        case '/p':
+        case '/party':
+        case '/grupo':
+            // /p <mensaje>
+            if (parts.length < 2) {
+                addActionLog('Uso: /p <mensaje>', 'failure');
+                return;
+            }
+            const partyMsg = parts.slice(1).join(' ');
+            sendPartyChat(partyMsg);
+            break;
+
+        case '/invite':
+        case '/invitar':
+            // /invite <jugador>
+            if (parts.length < 2) {
+                addActionLog('Uso: /invite <jugador>', 'failure');
+                return;
+            }
+            inviteToParty(parts[1]);
+            break;
+
+        case '/party-info':
+        case '/grupo-info':
+            getPartyInfo();
+            break;
+
+        case '/leave-party':
+        case '/salir':
+            leaveParty();
+            break;
+
+        case '/create-party':
+        case '/crear-grupo':
+            createParty();
+            break;
+
+        case '/help':
+        case '/ayuda':
+            showChatHelp();
+            break;
+
+        default:
+            addActionLog(`Comando desconocido: ${cmd}`, 'failure');
+            addActionLog('Usa /help para ver comandos disponibles', 'info');
+    }
+}
+
+function showChatHelp() {
+    addActionLog('=== COMANDOS DE CHAT ===', 'info');
+    addActionLog('/w <jugador> <mensaje> - Mensaje privado', 'info');
+    addActionLog('/p <mensaje> - Chat de grupo', 'info');
+    addActionLog('/invite <jugador> - Invitar a grupo', 'info');
+    addActionLog('/create-party - Crear grupo', 'info');
+    addActionLog('/grupo-info - Ver info del grupo', 'info');
+    addActionLog('/salir - Salir del grupo', 'info');
 }

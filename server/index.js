@@ -15,11 +15,14 @@ import dialogueEngine from './systems/dialogueEngine.js';
 import itemSystem from './systems/itemSystem.js';
 import globalEvents from './world/globalEvents.js';
 
-// ========== SISTEMAS DESACTIVADOS (ROTOS) ==========
-// import eventManager from './world/events.js';
-// import enemyManager from './world/enemies.js';
-// import worldSimulation from './world/simulation.js';
-// import questSystem from './systems/questSystem.js'; // V2 roto - reescribir con flags
+// Sistemas de mundo vivo
+import eventManager from './world/events.js';
+import worldSimulation from './world/simulation.js';
+import questSystem from './systems/questSystem.js';
+import dynamicQuests from './world/dynamicQuests.js';
+
+// ========== SISTEMAS DESACTIVADOS (TEMPORALMENTE) ==========
+// import enemyManager from './world/enemies.js'; // Combate desactivado por ahora
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -79,9 +82,17 @@ const dialoguesData = JSON.parse(readFileSync('./server/data/dialogues.json', 'u
 // Inicializar DialogueEngine con data
 dialogueEngine.initialize(npcsData, dialoguesData);
 
+// Inicializar QuestSystem V2 (basado en eventos)
+questSystem.initialize();
+
+// Iniciar simulación del mundo
+worldSimulation.start();
+
 console.log('✓ FASE A: Sistema de flags y diálogos condicionales activo');
 console.log('✓ GlobalEvents: Sistema de eventos narrativos cargado');
-console.log('⚠️  Sistemas viejos DESACTIVADOS hasta que el core funcione');
+console.log('✓ QuestSystem V2: Sistema basado en eventos activo');
+console.log('✓ WorldSimulation: Mundo vivo en ejecución');
+console.log('✓ DynamicQuests: Generación automática de misiones activa');
 
 // Iniciar servidor
 server.listen(PORT, () => {
@@ -98,13 +109,18 @@ server.listen(PORT, () => {
 ║  ✓ DialogueEngine: ACTIVO             ║
 ║  ✓ ItemSystem: ACTIVO                 ║
 ║  ✓ GlobalEvents: ACTIVO               ║
+║  ✓ QuestSystem V2: ACTIVO             ║
+║  ✓ WorldSimulation: ACTIVO            ║
+║  ✓ DynamicQuests: ACTIVO              ║
+║  ✓ PartyManager: ACTIVO               ║
 ║  ✓ Base de datos: CONECTADA           ║
 ║  ✓ WebSocket: LISTO                   ║
 ║                                       ║
 ║  🎯 TEST: Ana → Gómez → Ana           ║
 ║  🚨 EVENTO: Racionamiento disponible  ║
-║                                       ║
-║  ❌ Combate/Quests/Simulación: OFF    ║
+║  👥 Grupos y chat avanzado            ║
+║  📊 Votaciones de grupo               ║
+║  💕 Misiones dinámicas de NPCs        ║
 ║                                       ║
 ╚═══════════════════════════════════════╝
   `);
