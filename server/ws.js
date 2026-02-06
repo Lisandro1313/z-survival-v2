@@ -110,16 +110,19 @@ class GameWebSocket {
             // Quests
             case 'obtener_misiones':
             case 'obtener_quests':
+            case 'getQuests':
                 this.handleGetQuests(ws, data);
                 break;
 
             case 'aceptar_mision':
             case 'aceptar_quest':
+            case 'acceptQuest':
                 this.handleAcceptQuest(ws, data);
                 break;
 
             case 'completar_mision':
             case 'completar_quest':
+            case 'completeQuest':
                 this.handleCompleteQuest(ws, data);
                 break;
 

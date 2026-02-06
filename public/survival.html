@@ -1403,6 +1403,16 @@
     </div>
     <div id="profileContent"></div>
   </div>
+
+  <!-- Modal personalizado genérico -->
+  <div id="custom-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7);">
+    <div style="background-color: #2a2a2a; margin: 5% auto; padding: 20px; border: 2px solid #ffaa00; border-radius: 10px; width: 80%; max-width: 600px; color: white;">
+      <div style="text-align: right; margin-bottom: 10px;">
+        <button onclick="closeModal()" style="padding: 5px 10px; background: #aa0000; color: white; border: none; cursor: pointer; border-radius: 5px;">✖ Cerrar</button>
+      </div>
+      <div id="modal-content" style="text-align: left;"></div>
+    </div>
+  </div>
   
   <button id="soundToggle" onclick="toggleSound()" title="Activar/Desactivar sonidos">🔇</button>
 
@@ -1605,46 +1615,62 @@
     loadAudioFile('ataque_melee', '/sounds/AtacoMele.m4a');
     loadAudioFile('recibo_dano', '/sounds/ReciboDaño.m4a');
     
-    // Iniciar música ambiente de miedo
+    // Iniciar música ambiente 8-bit tranquila
     function startAmbientMusic() {
       if (!soundEnabled || !audioContext || ambientMusic) return;
       
       ambientGain = audioContext.createGain();
-      ambientGain.gain.value = 0.08; // Muy suave
+      ambientGain.gain.value = 0.05; // Muy suave
       ambientGain.connect(audioContext.destination);
       
-      // Tono bajo constante (sensación de tensión)
-      const lowDrone = audioContext.createOscillator();
-      lowDrone.type = 'sine';
-      lowDrone.frequency.value = 55; // Nota A muy grave
-      lowDrone.connect(ambientGain);
-      lowDrone.start();
+      // Secuencia de notas estilo 8-bit (C mayor relajante)
+      const notes = [
+        { freq: 261.63, duration: 0.4 }, // C
+        { freq: 329.63, duration: 0.4 }, // E
+        { freq: 392.00, duration: 0.4 }, // G
+        { freq: 523.25, duration: 0.4 }, // C alto
+        { freq: 392.00, duration: 0.4 }, // G
+        { freq: 329.63, duration: 0.4 }, // E
+        { freq: 293.66, duration: 0.4 }, // D
+        { freq: 261.63, duration: 0.8 }  // C (más larga)
+      ];
       
-      // Tono medio que oscila (inquietud)
-      const midDrone = audioContext.createOscillator();
-      midDrone.type = 'triangle';
-      midDrone.frequency.value = 110;
-      const midLFO = audioContext.createOscillator();
-      midLFO.type = 'sine';
-      midLFO.frequency.value = 0.1; // Oscilación muy lenta
-      const midLFOGain = audioContext.createGain();
-      midLFOGain.gain.value = 5;
-      midLFO.connect(midLFOGain);
-      midLFOGain.connect(midDrone.frequency);
-      midDrone.connect(ambientGain);
-      midDrone.start();
-      midLFO.start();
+      let noteIndex = 0;
+      let currentOsc = null;
       
-      ambientMusic = { lowDrone, midDrone, midLFO };
+      function playNextNote() {
+        if (!ambientMusic) return;
+        
+        const note = notes[noteIndex];
+        
+        // Crear nuevo oscilador para cada nota
+        currentOsc = audioContext.createOscillator();
+        currentOsc.type = 'square'; // Sonido 8-bit
+        currentOsc.frequency.value = note.freq;
+        
+        const noteGain = audioContext.createGain();
+        noteGain.gain.setValueAtTime(0, audioContext.currentTime);
+        noteGain.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.02); // Attack
+        noteGain.gain.setValueAtTime(1, audioContext.currentTime + note.duration - 0.05);
+        noteGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + note.duration); // Release
+        
+        currentOsc.connect(noteGain);
+        noteGain.connect(ambientGain);
+        
+        currentOsc.start(audioContext.currentTime);
+        currentOsc.stop(audioContext.currentTime + note.duration);
+        
+        noteIndex = (noteIndex + 1) % notes.length;
+        setTimeout(playNextNote, note.duration * 1000);
+      }
+      
+      playNextNote();
+      ambientMusic = { playing: true };
     }
     
     function stopAmbientMusic() {
       if (ambientMusic) {
-        try {
-          ambientMusic.lowDrone.stop();
-          ambientMusic.midDrone.stop();
-          ambientMusic.midLFO.stop();
-        } catch(e) {}
+        ambientMusic.playing = false;
         ambientMusic = null;
       }
     }
@@ -1933,6 +1959,7 @@
             renderChat();
             break;
           case 'mundo':
+            refreshQuests();
             refreshWorldEvents();
             loadIntenseRelationships();
             loadWorldStats();
@@ -2452,7 +2479,10 @@
     
     function refreshQuests() {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({ type: 'getActiveQuests' }));
+      ws.send(JSON.stringify({ 
+        type: 'getQuests', 
+        playerId: player.id 
+      }));
     }
     
     function renderQuests(quests) {
@@ -2533,15 +2563,17 @@
             <div style="margin: 10px 0;">
               <strong style="color: #ffaa00; font-size: 11px;">RECOMPENSAS:</strong>
               <div style="font-size: 10px; color: #ffcc00; margin-top: 5px;">
-                ${quest.rewards.xp ? `⭐ +${quest.rewards.xp} XP` : ''}
-                ${quest.rewards.reputacion ? `📊 +${quest.rewards.reputacion} Rep` : ''}
-                ${quest.rewards.oro ? `💰 +${quest.rewards.oro} Oro` : ''}
+                ${quest.rewards?.xp ? `⭐ +${quest.rewards.xp} XP` : ''}
+                ${quest.rewards?.reputacion ? `📊 +${quest.rewards.reputacion} Rep` : ''}
+                ${quest.rewards?.oro ? `💰 +${quest.rewards.oro} Oro` : ''}
               </div>
             </div>
             
-            <div style="margin: 10px 0; font-size: 10px; color: #888;">
-              NPCs: ${quest.npcsInvolved.map(npc => `<span style="color: #fff;">${npc.nombre}</span>`).join(', ')}
-            </div>
+            ${quest.npcsInvolved && quest.npcsInvolved.length > 0 ? `
+              <div style="margin: 10px 0; font-size: 10px; color: #888;">
+                NPCs: ${quest.npcsInvolved.map(npc => `<span style="color: #fff;">${npc.nombre || npc.name || npc}</span>`).join(', ')}
+              </div>
+            ` : ''}
             
             ${isAccepted ? `
               <button onclick="completeQuest('${quest.id}', true)" style="
@@ -2589,7 +2621,8 @@
       
       ws.send(JSON.stringify({
         type: 'acceptQuest',
-        questId
+        questId,
+        playerId: player.id
       }));
     }
     
@@ -2607,6 +2640,7 @@
         ws.send(JSON.stringify({
           type: 'completeQuest',
           questId,
+          playerId: player.id,
           success
         }));
       }
@@ -2765,6 +2799,11 @@
 
     // Mostrar paso narrativo
     function showNarrativeStep(step) {
+      if (!step) {
+        console.error('showNarrativeStep: step is null or undefined');
+        return;
+      }
+
       // Texto narrativo
       document.getElementById('narrativeStoryText').innerHTML = step.text;
 
@@ -3420,8 +3459,13 @@
       },
       
       'mission:new': (msg) => {
-        log(`🎯 Nueva misión: ${msg.mission?.descripcion || 'Misión disponible'}`, 'info');
+        const missionDesc = msg.mission?.descripcion || msg.mission?.description || msg.mission?.titulo || msg.mission?.title || 'Misión disponible';
+        log(`🎯 Nueva misión: ${missionDesc}`, 'info');
         showBadge('missions', 1);
+        // Refrescar lista de misiones si está en la pestaña mundo
+        if (document.getElementById('tab-mundo').style.display !== 'none') {
+          refreshQuests();
+        }
       },
       
       'mission:expired': (msg) => {
@@ -3443,6 +3487,20 @@
       },
 
       // ===== MISIONES DE NPCs =====
+      'npc:talk': (msg) => {
+        log(`${msg.npcName}: "${msg.dialogo}"`, 'info');
+        if (msg.playSound) {
+          playSound(msg.playSound);
+        }
+        if (msg.inventario) {
+          player.inventario = msg.inventario;
+        }
+        if (msg.npcState) {
+          world.npcs[msg.npcId] = msg.npcState;
+        }
+        renderGame();
+      },
+
       'npc:mission_accepted': (msg) => {
         player.activeMission = msg.mission;
         log(`📜 Misión aceptada: ${msg.mission.descripcion}`, 'success');
@@ -3521,16 +3579,52 @@
       'group:list_response': (msg) => {
         renderAvailableGroups(msg.groups);
       },
+
+      // ===== MISIONES DINÁMICAS =====
+      'quests': (msg) => {
+        // Normalizar formato de misiones (español -> inglés)
+        const normalizeQuest = (q) => ({
+          id: q.id,
+          title: q.title || q.titulo,
+          description: q.description || q.descripcion,
+          type: q.type || q.tipo,
+          objectives: q.objectives || q.objetivos || [],
+          rewards: q.rewards || q.recompensas || {},
+          estado: q.estado || q.status,
+          expiresAt: q.expiresAt || q.expira_en || (Date.now() + 600000), // 10 min default
+          npcsInvolved: q.npcsInvolved || q.npcs || [],
+          isDynamic: q.isDynamic || false
+        });
+
+        // Combinar misiones disponibles y activas
+        const allQuests = [
+          ...(msg.disponibles || []).map(normalizeQuest), 
+          ...(msg.activas || []).map(normalizeQuest)
+        ];
+        
+        console.log('📋 Misiones recibidas:', allQuests);
+        renderQuests(allQuests);
+      },
+
+      'quest_aceptada': (msg) => {
+        log(`✅ ${msg.mensaje}`, 'success');
+        playSound('achievement');
+        showActionFeedback(msg.mensaje, 'success');
+        // Refrescar lista de misiones
+        refreshQuests();
+      },
       
       'error': (msg) => {
-        log(`⚠️ ERROR: ${msg.error}`, 'warning');
+        log(`⚠️ ERROR: ${msg.error || msg.mensaje}`, 'warning');
       }
     };
 
     let currentGroup = null;
 
     function handleMessage(msg) {
-      const handler = messageHandlers[msg.type];
+      // Normalizar tipo de mensaje (soportar 'type' y 'tipo')
+      const messageType = msg.type || msg.tipo;
+      const handler = messageHandlers[messageType];
       if (handler) {
         handler(msg);
       } else {
@@ -4291,6 +4385,13 @@
     function closeProfile() {
       document.getElementById('profileModal').style.display = 'none';
       document.getElementById('profileBackdrop').style.display = 'none';
+    }
+    
+    function closeModal() {
+      const modal = document.getElementById('custom-modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
     }
     
     function sendDMTo(playerId, playerName) {
@@ -6192,6 +6293,9 @@
         resource: resource,
         cantidad: cantidad
       }));
+      
+      // Cerrar modal
+      closeModal();
     }
 
     function showNPCMissions(npcId) {
@@ -6227,8 +6331,16 @@
         </div>
       `;
 
-      document.getElementById('modal-content').innerHTML = content;
-      document.getElementById('custom-modal').style.display = 'flex';
+      const modalContent = document.getElementById('modal-content');
+      const customModal = document.getElementById('custom-modal');
+      
+      if (!modalContent || !customModal) {
+        console.error('Modal elements not found');
+        return;
+      }
+
+      modalContent.innerHTML = content;
+      customModal.style.display = 'flex';
     }
 
     function showGiveResourceMenu(npcId) {
@@ -6261,8 +6373,16 @@
         </div>
       `;
 
-      document.getElementById('modal-content').innerHTML = content;
-      document.getElementById('custom-modal').style.display = 'flex';
+      const modalContent = document.getElementById('modal-content');
+      const customModal = document.getElementById('custom-modal');
+      
+      if (!modalContent || !customModal) {
+        console.error('Modal elements not found');
+        return;
+      }
+
+      modalContent.innerHTML = content;
+      customModal.style.display = 'flex';
     }
 
     // Actualizar al cambiar a pestaña de grupos

@@ -43,6 +43,8 @@ const WORLD = {
             descripcion: 'Estantes vacíos, pero quizás quede algo. Huele a comida podrida.',
             recursos: { comida: 15, medicinas: 2, materiales: 5 },
             zombies: 3,
+            zombiesInitial: 3,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio', 'hospital']
         },
@@ -53,6 +55,8 @@ const WORLD = {
             descripcion: 'La puerta está rota. Huele a muerte.',
             recursos: { medicinas: 10, comida: 1, materiales: 3 },
             zombies: 5,
+            zombiesInitial: 5,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio']
         },
@@ -63,6 +67,8 @@ const WORLD = {
             descripcion: 'Una casa de dos pisos. Silencio inquietante.',
             recursos: { comida: 8, armas: 1, materiales: 8 },
             zombies: 2,
+            zombiesInitial: 2,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio']
         },
@@ -73,6 +79,8 @@ const WORLD = {
             descripcion: 'Corredores oscuros. Camillas volcadas. Muchos infectados.',
             recursos: { medicinas: 25, comida: 5, armas: 1, materiales: 10 },
             zombies: 12,
+            zombiesInitial: 12,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio', 'supermercado']
         },
@@ -83,6 +91,8 @@ const WORLD = {
             descripcion: 'La estación de policía. Armería saqueada... ¿o no?',
             recursos: { armas: 8, medicinas: 3, comida: 2, materiales: 12 },
             zombies: 8,
+            zombiesInitial: 8,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio', 'puente_sur']
         },
@@ -93,6 +103,8 @@ const WORLD = {
             descripcion: 'Un puente largo que conecta con otro sector de la ciudad. Peligroso.',
             recursos: { comida: 3, materiales: 5 },
             zombies: 15,
+            zombiesInitial: 15,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['comisaria', 'refugio_norte']
         },
@@ -114,6 +126,8 @@ const WORLD = {
             descripcion: 'Una fábrica de procesamiento. Muchos recursos pero también peligros.',
             recursos: { materiales: 30, armas: 3, comida: 2 },
             zombies: 10,
+            zombiesInitial: 10,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio_norte']
         },
@@ -124,6 +138,8 @@ const WORLD = {
             descripcion: 'Un mercado ilegal donde se intercambian recursos. Cuidado con los tramposos.',
             recursos: { comida: 20, medicinas: 5, armas: 10, materiales: 8 },
             zombies: 2,
+            zombiesInitial: 2,
+            zombiesRespawnTime: null,
             nivelRuido: 0,
             conectado_a: ['refugio_norte']
         }
@@ -151,7 +167,29 @@ const WORLD = {
                 'Deberíamos enviar un equipo al hospital.',
                 'No puedo hacer milagros sin medicinas.',
                 'Cada día pierdo más pacientes...',
-                'La infección se propaga rápido sin tratamiento.'
+                'La infección se propaga rápido sin tratamiento.',
+                '*agotado* No he dormido en 2 días.',
+                'María empeora. Necesito antibióticos YA.',
+                'Antes del apocalipsis, era cirujano cardiovascular.',
+                'Ahora apenas puedo curar un resfriado sin suministros.',
+                '¿Herido? Déjame ver... *examina*',
+                'El hospital tiene todo lo que necesitamos.',
+                'Pero está infestado de infectados.',
+                '*limpia sus anteojos* Perdón, estoy exhausto.',
+                'Trae medicinas y te curo gratis.',
+                'Jorge me cobra por todo. Es desesperante.',
+                'El Capitán prioriza las armas sobre la salud.',
+                '*suspiro* Otro más con fiebre...',
+                'Si encuentras morfina, tráela. Tengo pacientes con dolor.',
+                '¿Sabes algo de primeros auxilios?',
+                'Podría enseñarte a hacer vendajes.',
+                'La farmacia debe tener insulina. Algunos la necesitan.',
+                '*nervioso* La mordida de zombie es 99% fatal.',
+                'No hay cura. Solo podemos... acelerar el final.',
+                'María era enfermera. Me ayudaba antes de enfermar.',
+                'Irónico, ¿no? La enfermera es la que más sufre.',
+                '*mira sus manos manchadas* Tanto trabajo para nada.',
+                'Guarda tus medicinas. No sabes cuándo las necesitarás.'
             ]
         },
         maria: {
@@ -174,7 +212,29 @@ const WORLD = {
                 'Antes de esto, tenía una vida normal...',
                 '¿Cómo llegó todo a ser así?',
                 'Si sobrevivo, les deberé todo.',
-                'Mi familia está... ya no está.'
+                'Mi familia está... ya no está.',
+                '*tose débilmente*',
+                'Duele... todo duele.',
+                '*voz débil* ¿Agua?',
+                'Era enfermera antes del brote.',
+                'Ahora soy yo la que necesita ayuda...',
+                '*tiembla* Tengo tanto frío.',
+                'Vi morir a mi esposo. Me mordió.',
+                'El Dr. me salvó justo a tiempo.',
+                'Pero la infección... está dentro.',
+                '*llora en silencio*',
+                'No quiero convertirme en una de esas cosas.',
+                'Prométeme que... si me transformo...',
+                '*agarra tu mano* Gracias por quedarte.',
+                'Los demás me evitan. Creen que estoy infectada.',
+                '¿Lo estoy? No lo sé...',
+                'Mi hija tenía 7 años. Se llamaba Ana.',
+                'No pude salvarla.',
+                '*mira la pared vacía*',
+                'A veces deseo simplemente... dormir.',
+                'Pero luego pienso en todos ustedes.',
+                'Y quiero vivir un día más.',
+                '*sonrisa débil* Eres amable.'
             ]
         },
         capitan_rivas: {
@@ -198,7 +258,31 @@ const WORLD = {
                 'Necesitamos un plan para el hospital.',
                 '¿Alguien tiene experiencia militar aquí?',
                 'La disciplina nos mantendrá vivos.',
-                'No podemos quedarnos aquí para siempre.'
+                'No podemos quedarnos aquí para siempre.',
+                '*revisa su arma*',
+                'Firmes. Siempre firmes.',
+                'Antes era capitán del ejército. Ahora... líder de sobrevivientes.',
+                '¿Sabes disparar? Te puedo entrenar.',
+                'La comisaría tiene armas. Pero también peligros.',
+                'Vi caer a mi pelotón completo.',
+                'Yo... fui el único que salió vivo.',
+                '*aprieta puños* No dejaré que pase de nuevo.',
+                'Cada vida cuenta. Cada una.',
+                'Jorge es útil pero desconfiado. No lo culpo.',
+                'El Dr. Gómez hace milagros con nada.',
+                'María... ella merece mejor que esto.',
+                '*mira hacia afuera* Vienen cada noche.',
+                'Las defensas aguantan, pero no para siempre.',
+                '¿Voluntarios para patrulla? Necesito dos.',
+                'El valor sin disciplina es suicidio.',
+                '*señala mapa* Estas son las rutas seguras.',
+                'Nunca, NUNCA, salgas solo de noche.',
+                'He matado zombies. También... personas.',
+                'A veces no hay diferencia.',
+                '*voz baja* Los saqueadores son peores que los infectados.',
+                'Confío en ti. No decepciones esa confianza.',
+                '¿Listo para la misión? Buena suerte.',
+                'Vuelve con vida. Es una orden.'
             ]
         },
         comerciante: {
@@ -215,6 +299,8 @@ const WORLD = {
             inventario: { comida: 5, medicinas: 2 },
             dialogo: 'Cambio recursos por favores.',
             dialogos: [
+                'Hola... *suspiro*',
+                'Adiós...',
                 'Tengo algunos suministros para comerciar.',
                 'Todo tiene un precio en este mundo.',
                 'Si me traen materiales, puedo conseguir más.',
@@ -222,7 +308,27 @@ const WORLD = {
                 'Conozco rutas seguras para comercio.',
                 'Tengo contactos en otros refugios.',
                 'El trueque es el nuevo dinero.',
-                '¿Han oído de la zona militar? Hay armas ahí.'
+                '¿Han oído de la zona militar? Hay armas ahí.',
+                'La última vez que vi mi familia fue hace 3 meses...',
+                '*mira al suelo* No sé si siguen vivos.',
+                'Antes era contador. Ahora soy... esto.',
+                '¿Medicinas? Claro, pero te va a costar.',
+                'Vi zombies nuevos... más rápidos.',
+                'El refugio norte tiene armas, pero no confío en ellos.',
+                'Escuché rumores de una cura. Pura fantasía.',
+                '¿Tienes comida de sobra? Te cambio por municiones.',
+                'Necesito que alguien vaya a la farmacia por mí.',
+                'Los soldados del norte me deben favores.',
+                'No me mires así, hago lo que debo para sobrevivir.',
+                '¡Ah! Pensé que eras un zombie por un segundo.',
+                '*cuenta sus recursos obsesivamente*',
+                'El Dr. Gómez es buena gente, pero no tiene nada que comerciar.',
+                'María no va a durar mucho sin medicinas...',
+                '¿Sabes usar un arma? Tengo unas pocas...',
+                '*nervioso* ¿Escuchaste eso?',
+                'La comisaría tiene un arsenal. Lleno de zombies también.',
+                'Conozco un atajo al hospital, pero es peligroso.',
+                '¿Confías en el Capitán Rivas? Yo no estoy seguro...'
             ]
         },
         // === REFUGIO NORTE - NUEVOS NPCs ===
@@ -2538,6 +2644,108 @@ wss.on('connection', (ws) => {
             return;
         }
 
+        // ====================================
+        // HABLAR CON NPC (Diálogos variados)
+        // ====================================
+        if (msg.type === 'talk') {
+            const npc = WORLD.npcs[msg.npcId];
+            if (!npc || !npc.vivo) {
+                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                return;
+            }
+
+            if (npc.locacion !== player.locacion && npc.locacion !== 'refugio') {
+                ws.send(JSON.stringify({ type: 'error', error: 'No puedes hablar con ese NPC desde aquí' }));
+                return;
+            }
+
+            // Si el NPC tiene múltiples diálogos, elegir uno al azar
+            let dialogo = npc.dialogo;
+            if (npc.dialogos && npc.dialogos.length > 0) {
+                dialogo = npc.dialogos[Math.floor(Math.random() * npc.dialogos.length)];
+            }
+
+            // Enviar diálogo y reproducir sonido apropiado
+            const saludos = ['Hola', 'Hey', 'Buenas', 'Qué tal'];
+            const despedidas = ['Adiós', 'Nos vemos', 'Hasta luego', 'Cuídate'];
+
+            let sonido = 'npc_charla';
+            if (saludos.some(s => dialogo.includes(s))) {
+                sonido = 'npc_saludo';
+            } else if (despedidas.some(s => dialogo.includes(s))) {
+                sonido = 'npc_despedida';
+            }
+
+            ws.send(JSON.stringify({
+                type: 'npc:talk',
+                npcId: msg.npcId,
+                npcName: npc.nombre,
+                dialogo: dialogo,
+                playSound: sonido
+            }));
+
+            log(`${npc.nombre}: "${dialogo}"`);
+            return;
+        }
+
+        // ====================================
+        // DAR RECURSOS A NPC (Regalo)
+        // ====================================
+        if (msg.type === 'give' || msg.type === 'giveResource' || msg.type === 'npc:give_resource') {
+            const npcId = msg.npcId;
+            const recurso = msg.item || msg.recurso || msg.resource;
+            const cantidad = msg.cantidad || 1;
+
+            const npc = WORLD.npcs[npcId];
+            if (!npc || !npc.vivo) {
+                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                return;
+            }
+
+            if (!player.inventario[recurso] || player.inventario[recurso] < cantidad) {
+                ws.send(JSON.stringify({ type: 'error', error: `No tienes suficiente ${recurso}` }));
+                return;
+            }
+
+            // Consumir recurso del jugador
+            player.inventario[recurso] -= cantidad;
+
+            // Actualizar estado del NPC según el recurso
+            if (recurso === 'comida') {
+                npc.hambre = Math.max(0, npc.hambre - 20 * cantidad);
+                npc.moral = Math.min(100, npc.moral + 10);
+            } else if (recurso === 'medicinas') {
+                npc.salud = Math.min(100, npc.salud + 25 * cantidad);
+                npc.moral = Math.min(100, npc.moral + 15);
+            } else {
+                npc.moral = Math.min(100, npc.moral + 5);
+            }
+
+            // Dar XP y ganar reputación
+            giveXP(player, 20, ws);
+            player.stats.reputacion = (player.stats.reputacion || 0) + 5;
+
+            const respuestas = [
+                '¡Muchas gracias! Esto me ayuda mucho.',
+                '¡Eres muy amable! Gracias.',
+                'No olvidaré esto. Gracias.',
+                'Esto significa mucho para mí. Gracias.'
+            ];
+
+            ws.send(JSON.stringify({
+                type: 'npc:talk',
+                npcId: npcId,
+                npcName: npc.nombre,
+                dialogo: respuestas[Math.floor(Math.random() * respuestas.length)],
+                playSound: 'npc_charla',
+                inventario: player.inventario,
+                npcState: npc
+            }));
+
+            log(`Diste ${cantidad} ${recurso} a ${npc.nombre}`);
+            return;
+        }
+
         // CRAFTEAR
         if (msg.type === 'craft') {
             // Cooldown check
@@ -2804,6 +3012,13 @@ wss.on('connection', (ws) => {
                 resultado.killed = Math.min(loc.zombies, Math.max(1, killsCalculados));
             }
             loc.zombies -= resultado.killed;
+
+            // Si eliminamos todos los zombies, iniciar cooldown de respawn (30 minutos)
+            if (loc.zombies === 0 && loc.zombiesInitial > 0) {
+                loc.zombiesRespawnTime = Date.now() + (30 * 60 * 1000); // 30 minutos
+                console.log(`🧟 Zona ${loc.nombre} limpiada. Respawn en 30 minutos.`);
+            }
+
             loc.nivelRuido += resultado.ruido;
 
             // LOOT de zombies muertos
@@ -4409,6 +4624,34 @@ setInterval(() => {
         console.log(`💾 Auto-guardado completado: ${savedCount} jugador(es)`);
     }
 }, 60000); // Cada 60 segundos
+
+// ====================================
+// RESPAWN DE ZOMBIES
+// ====================================
+setInterval(() => {
+    const now = Date.now();
+    let respawnedLocations = 0;
+
+    Object.values(WORLD.locations).forEach(loc => {
+        // Verificar si es hora de respawnear zombies
+        if (loc.zombies === 0 && loc.zombiesRespawnTime && now >= loc.zombiesRespawnTime) {
+            loc.zombies = loc.zombiesInitial;
+            loc.zombiesRespawnTime = null;
+            respawnedLocations++;
+            console.log(`🧟 Zombies respawneados en ${loc.nombre}: ${loc.zombies} zombies`);
+
+            // Notificar a jugadores en esa ubicación
+            broadcast({
+                type: 'world:update',
+                message: `⚠️ Se escuchan gruñidos en ${loc.nombre}... Los infectados han regresado.`
+            });
+        }
+    });
+
+    if (respawnedLocations > 0) {
+        console.log(`🧟 ${respawnedLocations} ubicación(es) con zombies respawneados`);
+    }
+}, 30000); // Cada 30 segundos verificar
 
 // ====================================
 // INICIALIZAR SISTEMA DE MUNDO VIVO

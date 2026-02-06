@@ -21,6 +21,12 @@ class DynamicQuestSystem {
         this.completedQuests = new Set();
         this.questGenerationCooldown = 120000; // 2 minutos entre generaciones
         this.lastGeneration = 0;
+        this.broadcastCallback = null; // Callback para notificar nuevas quests
+    }
+
+    // Configurar callback de broadcast
+    setBroadcastCallback(callback) {
+        this.broadcastCallback = callback;
     }
 
     // ===== GENERAR QUEST BASADA EN EVENTOS =====
@@ -378,6 +384,20 @@ class DynamicQuestSystem {
         const quest = this.generateQuestFromWorldState();
         if (quest) {
             console.log(`🎯 Nueva quest generada: "${quest.title}"`);
+
+            // Notificar a todos los clientes si hay callback configurado
+            if (this.broadcastCallback) {
+                this.broadcastCallback({
+                    type: 'mission:new',
+                    mission: {
+                        id: quest.id,
+                        title: quest.title,
+                        description: quest.description,
+                        type: quest.type
+                    }
+                });
+            }
+
             return quest;
         }
         return null;

@@ -445,7 +445,7 @@ class WorldSimulation {
             // Si es horda, spawnear enemigos
             if (type === 'horda_zombies') {
                 for (let i = 0; i < 3; i++) {
-                    enemyManager.spawnEnemy(location);
+                    enemies.spawnEnemy(location);
                 }
             }
         } catch (err) {

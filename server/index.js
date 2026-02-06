@@ -71,6 +71,11 @@ app.get('/', (req, res) => {
 // Inicializar WebSocket
 gameWebSocket.initialize(server);
 
+// Conectar dynamicQuests con el broadcast del WebSocket
+dynamicQuests.setBroadcastCallback((message) => {
+    gameWebSocket.broadcastGlobal(message);
+});
+
 // ========== FASE A: SISTEMAS NUEVOS (FLAG-BASED) ==========
 // Inicializar FlagSystem
 flagSystem.initialize();
