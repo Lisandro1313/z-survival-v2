@@ -3434,7 +3434,7 @@ wss.on('connection', (ws) => {
             connections.delete(playerId);
             delete WORLD.players[playerId];
             broadcast({ type: 'player:left', playerId });
-            
+
             // Enviar lista actualizada de jugadores a todos
             const connectedPlayers = Array.from(connections.keys())
                 .filter(pid => WORLD.players[pid])
@@ -3445,12 +3445,12 @@ wss.on('connection', (ws) => {
                     nivel: WORLD.players[pid].nivel,
                     stats: WORLD.players[pid].stats || {}
                 }));
-            
+
             broadcast({
                 type: 'players:list',
                 players: connectedPlayers
             });
-            
+
             console.log(`👋 ${playerId} desconectado`);
         }
     });
