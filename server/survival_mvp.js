@@ -2032,11 +2032,11 @@ app.post('/api/pvp/attack', (req, res) => {
 // WEBSOCKET
 // ====================================
 
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import http from 'http';
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocketServer({ server });
 
 const connections = new Map(); // playerId -> ws
 
