@@ -873,8 +873,11 @@
             
             <!-- Panel derecho: Info rápida -->
             <div class="panel">
-              <h2>🛡️ DEFENSAS REFUGIO</h2>
-              <div id="defensas" style="font-size: 20px; color: #00ffff; margin: 10px 0;"></div>
+              <h2>⏱️ TIEMPO DE SUPERVIVENCIA</h2>
+              <div id="survivalTime" style="font-size: 14px; color: #00ff00; margin: 10px 0;">
+                <div style="margin: 5px 0;">🗓️ Días sobrevividos: <span id="daysAlive">1</span></div>
+                <div style="margin: 5px 0;">⏰ Tiempo total: <span id="totalTime">0h 0m</span></div>
+              </div>
 
               <h2>🌙 CICLO DÍA/NOCHE</h2>
               <div id="timeDisplay" style="font-size: 18px; text-align: center; margin: 10px 0;">
@@ -1370,6 +1373,8 @@
     let worldEvents = []; // Caché de eventos del mundo
     let intenseRelationships = []; // Caché de relaciones intensas
     let worldStats = null; // Caché de estadísticas del mundo
+    let gameStartTime = Date.now(); // Tiempo de inicio de la sesión
+    let totalPlayTime = 0; // Tiempo total jugado en milisegundos
 
     // Helper para hash simple de objetos
     function simpleHash(obj) {
@@ -4255,6 +4260,7 @@
       renderPlayerStats();
       renderLocation();
       renderWorldTime();
+      renderSurvivalTime();
       
       // Renders con caché (solo si cambió el contenido)
       cachedRender('inventory', renderInventory, player.inventario);
@@ -4278,6 +4284,27 @@
       renderAchievements();
       renderTimeOfDay();
       renderRefugioVisual();
+    }
+
+    function renderSurvivalTime() {
+      // Calcular tiempo de supervivencia
+      const currentSession = Date.now() - gameStartTime;
+      const totalMs = totalPlayTime + currentSession;
+      
+      const hours = Math.floor(totalMs / (1000 * 60 * 60));
+      const minutes = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60));
+      
+      // Actualizar días (basado en el día del mundo)
+      const daysEl = document.getElementById('daysAlive');
+      const totalTimeEl = document.getElementById('totalTime');
+      
+      if (daysEl && world && world.time) {
+        daysEl.textContent = world.time.dia || 1;
+      }
+      
+      if (totalTimeEl) {
+        totalTimeEl.textContent = `${hours}h ${minutes}m`;
+      }
     }
 
     function renderPlayerStats() {
