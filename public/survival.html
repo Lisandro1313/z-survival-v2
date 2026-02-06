@@ -1366,6 +1366,7 @@
     let pendingActions = new Set(); // Prevenir acciones duplicadas
     let renderCache = {}; // Caché de renders para evitar actualizaciones innecesarias
     let tabsLoaded = { game: true }; // Tabs ya cargados (game se carga al inicio)
+    let connections = new Map(); // Simulación de conexiones para contar jugadores
 
     // Helper para hash simple de objetos
     function simpleHash(obj) {
@@ -2854,6 +2855,14 @@
         player = data.player;
         document.getElementById('login').style.display = 'none';
         document.getElementById('gameScreen').style.display = 'block';
+        
+        // Inicializar historia destacada con mensaje inicial
+        setTimeout(() => {
+          if (world && player) {
+            updateFeaturedStory();
+          }
+        }, 1000);
+        
         connectWebSocket();
       }
     }
@@ -3250,6 +3259,7 @@
           if (world.players && world.players[player.id]) {
             player = world.players[player.id];
           }
+          updateFeaturedStory(); // Actualizar historia destacada
           renderGame();
           break;
         
@@ -3451,6 +3461,13 @@
           break;
 
         case 'players:list':
+          // Actualizar mapa de conexiones para featured story
+          connections.clear();
+          if (msg.players && Array.isArray(msg.players)) {
+            msg.players.forEach(p => {
+              connections.set(p.id, p);
+            });
+          }
           renderOnlinePlayers(msg.players);
           break;
           
@@ -5472,8 +5489,8 @@
       }
       
       // Recursos del refugio críticos
-      if (world.refugio) {
-        const lowResources = Object.entries(world.refugio).filter(([k, v]) => v < 10 && k !== 'poblacion');
+      if (world.refugio && world.refugio.recursos) {
+        const lowResources = Object.entries(world.refugio.recursos).filter(([k, v]) => v < 10);
         if (lowResources.length > 0) {
           const resource = lowResources[0][0];
           stories.push({
@@ -5486,10 +5503,10 @@
       }
       
       // Jugadores en línea
-      const onlinePlayers = world.onlinePlayers || 0;
-      if (onlinePlayers > 3) {
+      const onlinePlayers = connections?.size || 0;
+      if (onlinePlayers > 1) {
         stories.push({
-          text: `👥 ${onlinePlayers} supervivientes conectados ahora mismo`,
+          text: `👥 ${onlinePlayers} supervivientes conectados ahora`,
           target: 'social',
           type: 'highlight',
           priority: 60
