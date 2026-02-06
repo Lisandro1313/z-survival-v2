@@ -3359,8 +3359,35 @@
         }
       },
       
+      'pong': (msg) => {
+        // Respuesta al ping, mantener conexión activa
+      },
+      
+      'mission:new': (msg) => {
+        log(`🎯 Nueva misión: ${msg.mission?.descripcion || 'Misión disponible'}`, 'info');
+        showBadge('missions', 1);
+      },
+      
+      'mission:expired': (msg) => {
+        log(`⏰ Misión expirada`, 'warning');
+      },
+      
+      'world:update': (msg) => {
+        log(msg.message, 'info');
+        addWorldLog(msg.message);
+      },
+      
+      'event:bad_outcome': (msg) => {
+        log(`⚠️ ${msg.message}`, 'warning');
+        playSound('error');
+      },
+      
+      'event:resolved_broadcast': (msg) => {
+        log(`✅ Evento resuelto: ${msg.message}`, 'success');
+      },
+      
       'error': (msg) => {
-        log(`ERROR: ${msg.error}`, 'warning');
+        log(`⚠️ ERROR: ${msg.error}`, 'warning');
       }
     };
 
