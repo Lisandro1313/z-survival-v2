@@ -7,11 +7,26 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
+    :root {
+      /* 🎨 Sistema de jerarquía verde */
+      --green-bright: #00ff00;     /* Acciones primarias, alertas críticas */
+      --green-medium: #00cc00;     /* Info importante, elementos activos */
+      --green-dim: #006600;        /* Elementos pasivos, decorativos */
+      --green-dark: #004400;       /* Backgrounds, menos prominente */
+      
+      /* Espaciado consistente */
+      --spacing-xs: 5px;
+      --spacing-sm: 10px;
+      --spacing-md: 15px;
+      --spacing-lg: 20px;
+      --spacing-xl: 30px;
+    }
+    
     body {
       font-family: 'Courier New', monospace;
       background: #1a1a1a;
-      color: #00ff00;
-      padding: 10px;
+      color: var(--green-medium);
+      padding: var(--spacing-sm);
     }
     
     #game {
@@ -29,28 +44,28 @@
     /* SISTEMA DE PESTAÑAS */
     .tabs-container {
       background: #2a2a2a;
-      border: 2px solid #00ff00;
+      border: 2px solid var(--green-dim);
       border-radius: 5px;
-      margin-top: 10px;
+      margin-top: var(--spacing-md);
     }
 
     .tabs-header {
       display: flex;
       background: #1a1a1a;
-      border-bottom: 2px solid #00ff00;
+      border-bottom: 2px solid var(--green-dim);
       overflow-x: auto;
       flex-wrap: wrap;
     }
 
     .tab-button {
       background: #2a2a2a;
-      color: #00ff00;
+      color: var(--green-medium);
       border: none;
-      padding: 15px 20px;
+      padding: var(--spacing-md) var(--spacing-lg);
       cursor: pointer;
       font-family: inherit;
       font-size: 14px;
-      border-right: 1px solid #004400;
+      border-right: 1px solid var(--green-dark);
       transition: all 0.3s;
       position: relative;
       white-space: nowrap;
@@ -58,12 +73,14 @@
 
     .tab-button:hover {
       background: #3a3a3a;
+      color: var(--green-bright);
     }
 
     .tab-button.active {
-      background: #00ff00;
+      background: var(--green-bright);
       color: #000;
       font-weight: bold;
+      box-shadow: 0 2px 10px rgba(0, 255, 0, 0.3);
     }
 
     .tab-badge {
@@ -122,6 +139,64 @@
       z-index: 10000;
       display: none;
       box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+    }
+    
+    /* 💥 Sistema de feedback de consecuencias */
+    #consequenceFeedback {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 9999;
+      max-width: 300px;
+      pointer-events: none;
+    }
+    
+    .consequence-popup {
+      background: rgba(0, 0, 0, 0.95);
+      border: 2px solid var(--green-bright);
+      padding: 12px 18px;
+      margin-bottom: 8px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: bold;
+      animation: popupSlide 0.4s ease-out, popupFade 3s ease-in;
+      box-shadow: 0 4px 15px rgba(0, 255, 0, 0.4);
+    }
+    
+    .consequence-popup.positive {
+      border-color: var(--green-bright);
+      color: var(--green-bright);
+    }
+    
+    .consequence-popup.negative {
+      border-color: #ff0000;
+      color: #ff0000;
+    }
+    
+    .consequence-popup.warning {
+      border-color: #ffff00;
+      color: #ffff00;
+    }
+    
+    .consequence-popup.neutral {
+      border-color: #00ffff;
+      color: #00ffff;
+    }
+    
+    @keyframes popupSlide {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes popupFade {
+      0%, 70% { opacity: 1; }
+      100% { opacity: 0; }
     }
     
     /* Tabs de crafteo */
@@ -193,7 +268,7 @@
 
     .tab-content {
       display: none;
-      padding: 15px;
+      padding: var(--spacing-lg);
       animation: fadeIn 0.3s;
     }
 
@@ -209,8 +284,9 @@
     .container {
       display: grid;
       grid-template-columns: 1fr 2fr 1fr;
-      gap: 15px;
-      margin-top: 15px;
+      gap: var(--spacing-md);
+      margin-top: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
     }
 
     @media (max-width: 1024px) {
@@ -232,16 +308,30 @@
     
     .panel {
       background: #2a2a2a;
-      border: 2px solid #00ff00;
-      padding: 15px;
+      border: 2px solid var(--green-dim);
+      padding: var(--spacing-md);
       border-radius: 5px;
+      transition: all 0.3s;
+    }
+    
+    /* 🌟 Panel protagonista (destacado) */
+    .panel.featured {
+      border: 3px solid var(--green-bright);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+      background: #2a3a2a;
+      transform: scale(1.02);
+    }
+    
+    .panel.featured h2 {
+      color: var(--green-bright);
+      font-size: 18px;
     }
     
     .panel h2 {
       color: #ffff00;
-      margin-bottom: 10px;
-      border-bottom: 1px solid #00ff00;
-      padding-bottom: 5px;
+      margin-bottom: var(--spacing-sm);
+      border-bottom: 1px solid var(--green-dim);
+      padding-bottom: var(--spacing-xs);
       font-size: 16px;
     }
     
@@ -253,9 +343,11 @@
     .stat-bar {
       background: #000;
       height: 15px;
-      border: 1px solid #00ff00;
-      margin-top: 3px;
+      border: 1px solid var(--green-dim);
+      margin-top: var(--spacing-xs);
       position: relative;
+      border-radius: 3px;
+      overflow: hidden;
     }
     
     .stat-fill {
@@ -268,11 +360,11 @@
     .stat-fill.moral { background: #00ffff; }
     
     button {
-      background: #004400;
-      color: #00ff00;
-      border: 2px solid #00ff00;
-      padding: 10px 15px;
-      margin: 5px 2px;
+      background: var(--green-dark);
+      color: var(--green-medium);
+      border: 2px solid var(--green-dim);
+      padding: var(--spacing-sm) var(--spacing-md);
+      margin: var(--spacing-xs) 2px;
       cursor: pointer;
       font-family: inherit;
       border-radius: 3px;
@@ -280,8 +372,24 @@
     }
     
     button:hover {
-      background: #00ff00;
+      background: var(--green-dim);
+      color: var(--green-bright);
+      border-color: var(--green-medium);
+      transform: translateY(-1px);
+    }
+    
+    /* Botón de acción primaria */
+    button.primary {
+      background: var(--green-dim);
+      color: var(--green-bright);
+      border-color: var(--green-bright);
+      font-weight: bold;
+    }
+    
+    button.primary:hover {
+      background: var(--green-bright);
       color: #000;
+      box-shadow: 0 4px 15px rgba(0, 255, 0, 0.4);
     }
     
     button:disabled {
@@ -290,20 +398,25 @@
     }
     
     .location {
-      padding: 10px;
-      margin: 5px 0;
+      padding: var(--spacing-sm);
+      margin: var(--spacing-sm) 0;
       background: #1a1a1a;
-      border-left: 3px solid #00ff00;
+      border-left: 3px solid var(--green-dim);
       cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 3px;
     }
     
     .location:hover {
-      background: #333;
+      background: #2a2a2a;
+      border-left-color: var(--green-medium);
+      transform: translateX(5px);
     }
     
     .location.current {
-      border-left-color: #ffff00;
-      background: #333;
+      border-left-color: var(--green-bright);
+      background: #2a3a2a;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
     }
     
     .location.danger {
@@ -311,10 +424,17 @@
     }
     
     .npc {
-      padding: 10px;
-      margin: 8px 0;
+      padding: var(--spacing-sm);
+      margin: var(--spacing-sm) 0;
       background: #1a1a1a;
-      border: 1px solid #00ff00;
+      border: 1px solid var(--green-dim);
+      border-radius: 3px;
+      transition: all 0.2s;
+    }
+    
+    .npc:hover {
+      border-color: var(--green-medium);
+      background: #2a2a2a;
     }
     
     .npc.dead {
@@ -585,6 +705,13 @@
     
     .stat-better { color: #ff8888; }
     .stat-worse { color: #88ff88; }
+    
+    /* 🌟 Estilos para historia destacada */
+    #featuredStory:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 255, 0, 0.4) !important;
+      background: linear-gradient(135deg, #1a3a1a, #3a1a1a);
+    }
   </style>
 </head>
 <body>
@@ -592,6 +719,9 @@
   <div id="connectionStatus" class="connection-status connected">
     🟢 Conectado
   </div>
+  
+  <!-- Sistema de feedback de consecuencias -->
+  <div id="consequenceFeedback"></div>
 
   <div id="game">
     <!-- Pantalla de login -->
@@ -627,6 +757,18 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
         <h1 style="margin: 0;">💻 Z-SURVIVAL.exe <span style="font-size: 14px; color: #888; font-weight: normal;">// alpha build</span></h1>
         <a href="https://link.mercadopago.com.ar/donaciondelproyecto" target="_blank" style="padding: 6px 12px; background: #009ee3; color: white; text-decoration: none; border-radius: 3px; font-size: 11px; font-weight: bold;">💝 Donar</a>
+      </div>
+      
+      <!-- 🌟 HISTORIA DESTACADA DEL DÍA -->
+      <div id="featuredStory" style="background: linear-gradient(135deg, #1a2a1a, #2a1a1a); border: 2px solid var(--green-bright); padding: 12px 18px; margin-bottom: 15px; border-radius: 5px; cursor: pointer; transition: all 0.3s; box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);" onclick="handleFeaturedStoryClick()">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">📰</span>
+          <div style="flex: 1;">
+            <div style="font-size: 10px; color: var(--green-dim); text-transform: uppercase; letter-spacing: 1px;">HOY EN EL MUNDO</div>
+            <div id="featuredStoryText" style="color: var(--green-bright); font-weight: bold; margin-top: 3px; font-size: 13px;">Cargando acontecimientos...</div>
+          </div>
+          <span style="color: var(--green-medium); font-size: 20px;">→</span>
+        </div>
       </div>
       
       <!-- SISTEMA DE PESTAÑAS -->
@@ -685,7 +827,7 @@
             </div>
             
             <!-- Panel central: Mundo y acciones -->
-            <div class="panel">
+            <div class="panel featured">
               <h2 id="locationName">📍 Ubicación</h2>
               <p id="locationDesc" style="margin: 10px 0; color: #ccc;"></p>
               
@@ -881,7 +1023,7 @@
         <!-- PESTAÑA 2: EVENTOS & MISIONES -->
         <div id="tab-events" class="tab-content">
           <div class="container">
-            <div class="panel">
+            <div class="panel featured">
               <h2>📜 MISIONES ACTIVAS <span id="missionCount" style="font-size: 12px; color: #ffaa00;"></span></h2>
               <div id="missionsPanel" style="font-size: 11px; max-height: 300px; overflow-y: auto;">
                 <em style="color: #888;">Sin misiones disponibles</em>
@@ -1707,10 +1849,17 @@
     function rest() {
       if (!player) return;
       
+      const oldSalud = player.salud;
+      const oldHambre = player.hambre;
+      
       player.salud = Math.min(100, player.salud + 10);
       player.hambre = Math.max(0, player.hambre - 5);
       
-      showActionFeedback('💤 Descansando... +10 salud', 'success');
+      // Mostrar consecuencias
+      if (player.salud > oldSalud) showStatChange('salud', player.salud - oldSalud);
+      if (player.hambre < oldHambre) showStatChange('hambre', player.hambre - oldHambre);
+      
+      showActionFeedback('💤 Descansando...', 'success');
       renderGame();
     }
 
@@ -3042,6 +3191,14 @@
         case 'scavenge:result':
           const items = Object.entries(msg.found).map(([k,v]) => `${k}:${v}`).join(', ');
           log(`Encontraste: ${items || 'nada'}`, 'success');
+          
+          // Mostrar pop-ups de consecuencias
+          for (const [item, cantidad] of Object.entries(msg.found)) {
+            if (cantidad > 0) {
+              showStatChange(item, cantidad);
+            }
+          }
+          
           if (msg.inventario) {
             player.inventario = msg.inventario;
           }
@@ -3051,7 +3208,14 @@
           
         case 'combat':
           log(msg.message, 'combat');
+          const oldHealth = player.salud;
           player.salud = msg.salud;
+          
+          // Mostrar cambio de salud
+          if (player.salud !== oldHealth) {
+            showStatChange('salud', player.salud - oldHealth);
+          }
+          
           renderGame();
           break;
           
@@ -4466,6 +4630,82 @@
         setTimeout(() => notif.remove(), 300);
       }, 3000);
     }
+    
+    // 💥 Sistema de feedback de consecuencias
+    function showConsequence(text, type = 'neutral') {
+      const container = document.getElementById('consequenceFeedback');
+      if (!container) return;
+      
+      const popup = document.createElement('div');
+      popup.className = `consequence-popup ${type}`;
+      popup.textContent = text;
+      
+      container.appendChild(popup);
+      
+      // Auto-remover después de 3 segundos
+      setTimeout(() => {
+        popup.remove();
+      }, 3000);
+    }
+    
+    // Helper para mostrar cambios de stats
+    function showStatChange(stat, amount) {
+      let icon = '';
+      let type = 'neutral';
+      
+      switch(stat) {
+        case 'salud':
+        case 'health':
+          icon = '❤️';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'hambre':
+        case 'hunger':
+          icon = '🍖';
+          type = amount < 0 ? 'positive' : 'negative'; // Menos hambre es bueno
+          break;
+        case 'energia':
+        case 'energy':
+          icon = '⚡';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'moral':
+        case 'morale':
+          icon = '😊';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'comida':
+        case 'food':
+          icon = '🥫';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'agua':
+        case 'water':
+          icon = '💧';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'materiales':
+        case 'materials':
+          icon = '🔧';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'medicina':
+        case 'medicine':
+          icon = '💊';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        case 'armas':
+        case 'weapons':
+          icon = '🔫';
+          type = amount > 0 ? 'positive' : 'negative';
+          break;
+        default:
+          icon = '📊';
+      }
+      
+      const sign = amount > 0 ? '+' : '';
+      showConsequence(`${icon} ${sign}${amount} ${stat}`, type);
+    }
 
     // Mejorar handleMessage para incluir notificaciones
     const originalHandleMessage = handleMessage;
@@ -5079,7 +5319,154 @@
       renderAbilities();
       renderFaction();
       renderVehicle();
+      updateFeaturedStory();
     };
+    
+    // 🌟 SISTEMA DE HISTORIA DESTACADA
+    let featuredStoryData = {
+      text: 'El refugio se mantiene en calma...',
+      target: null,
+      type: 'neutral'
+    };
+    
+    function updateFeaturedStory() {
+      if (!world || !player) return;
+      
+      const stories = [];
+      
+      // Verificar eventos especiales activos
+      if (world.evento_especial) {
+        stories.push({
+          text: `⚠️ ${world.evento_especial.descripcion}`,
+          target: 'events',
+          type: 'danger',
+          priority: 100
+        });
+      }
+      
+      // Relaciones dramáticas entre NPCs
+      const npcs = Object.values(world.npcs || {});
+      for (const npc of npcs) {
+        if (npc.relaciones) {
+          const relations = Object.values(npc.relaciones);
+          const romance = relations.find(r => r.estado === 'amantes');
+          const rivalry = relations.find(r => r.estado === 'enemigos' || r.estado === 'rivales');
+          
+          if (romance) {
+            stories.push({
+              text: `💕 Una relación romántica está floreciendo en el refugio`,
+              target: 'mundo',
+              type: 'positive',
+              priority: 80
+            });
+            break;
+          }
+          
+          if (rivalry) {
+            stories.push({
+              text: `⚔️ Tensión creciente entre sobrevivientes del refugio`,
+              target: 'mundo',
+              type: 'warning',
+              priority: 85
+            });
+            break;
+          }
+        }
+      }
+      
+      // Misiones narrativas disponibles
+      if (player.misionesNarrativasDisponibles && player.misionesNarrativasDisponibles.length > 0) {
+        stories.push({
+          text: `📖 Nueva misión narrativa disponible`,
+          target: 'missions',
+          type: 'highlight',
+          priority: 70
+        });
+      }
+      
+      // Recursos del refugio críticos
+      if (world.refugio) {
+        const lowResources = Object.entries(world.refugio).filter(([k, v]) => v < 10 && k !== 'poblacion');
+        if (lowResources.length > 0) {
+          const resource = lowResources[0][0];
+          stories.push({
+            text: `🏠 Refugio necesita urgente: ${resource}`,
+            target: 'main',
+            type: 'warning',
+            priority: 90
+          });
+        }
+      }
+      
+      // Jugadores en línea
+      const onlinePlayers = world.onlinePlayers || 0;
+      if (onlinePlayers > 3) {
+        stories.push({
+          text: `👥 ${onlinePlayers} supervivientes conectados ahora mismo`,
+          target: 'social',
+          type: 'highlight',
+          priority: 60
+        });
+      }
+      
+      // Estado del jugador crítico
+      if (player.salud < 30) {
+        stories.push({
+          text: `💔 Tu salud está crítica. Descansa pronto`,
+          target: 'main',
+          type: 'danger',
+          priority: 95
+        });
+      }
+      
+      // Seleccionar historia de mayor prioridad
+      if (stories.length > 0) {
+        stories.sort((a, b) => b.priority - a.priority);
+        featuredStoryData = stories[0];
+      } else {
+        featuredStoryData = {
+          text: 'Todo tranquilo en el apocalipsis... por ahora',
+          target: null,
+          type: 'neutral',
+          priority: 0
+        };
+      }
+      
+      // Actualizar UI
+      const textEl = document.getElementById('featuredStoryText');
+      const containerEl = document.getElementById('featuredStory');
+      if (textEl) {
+        textEl.textContent = featuredStoryData.text;
+      }
+      
+      // Actualizar color del borde según tipo
+      if (containerEl) {
+        let borderColor = 'var(--green-bright)';
+        switch(featuredStoryData.type) {
+          case 'danger':
+            borderColor = '#ff0000';
+            break;
+          case 'warning':
+            borderColor = '#ffff00';
+            break;
+          case 'positive':
+            borderColor = '#00ffff';
+            break;
+          case 'highlight':
+            borderColor = 'var(--green-bright)';
+            break;
+        }
+        containerEl.style.borderColor = borderColor;
+        containerEl.style.boxShadow = `0 0 15px ${borderColor}40`;
+      }
+    }
+    
+    function handleFeaturedStoryClick() {
+      if (featuredStoryData.target) {
+        switchTab(featuredStoryData.target);
+        showConsequence('📌 Navegando a ' + featuredStoryData.target.toUpperCase(), 'neutral');
+      }
+    }
 
     console.log('🧟 Survival Zombie MVP cargado. Usa teclas rápidas: S=Scavenge, C=Combat, T=Trade, H=Hablar');
   </script>

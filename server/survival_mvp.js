@@ -3,9 +3,14 @@
  * Versión con persistencia y creación de personajes
  */
 
-const express = require('express');
-const path = require('path');
-const survivalDB = require('./db/survivalDB');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import survivalDB from './db/survivalDB.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -2027,8 +2032,10 @@ app.post('/api/pvp/attack', (req, res) => {
 // WEBSOCKET
 // ====================================
 
-const WebSocket = require('ws');
-const server = require('http').createServer(app);
+import WebSocket from 'ws';
+import http from 'http';
+
+const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 const connections = new Map(); // playerId -> ws

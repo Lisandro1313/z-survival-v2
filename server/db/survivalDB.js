@@ -3,9 +3,13 @@
  * Maneja persistencia de usuarios y personajes
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, 'survival.db');
 const db = new Database(dbPath);
@@ -176,7 +180,7 @@ function obtenerEstadisticas(personajeId) {
     return stmt.get(personajeId);
 }
 
-module.exports = {
+export default {
     crearUsuario,
     loginUsuario,
     crearPersonaje,
