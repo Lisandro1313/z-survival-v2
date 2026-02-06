@@ -1375,6 +1375,8 @@
     let worldStats = null; // Caché de estadísticas del mundo
     let gameStartTime = Date.now(); // Tiempo de inicio de la sesión
     let totalPlayTime = 0; // Tiempo total jugado en milisegundos
+    let attackCooldown = 0; // Timestamp cuando se puede atacar nuevamente
+    let cooldownInterval = null; // Intervalo para actualizar UI de cooldown
 
     // Helper para hash simple de objetos
     function simpleHash(obj) {
@@ -4375,14 +4377,14 @@
             <div style="background: #2a1a1a; padding: 10px; margin: 10px 0; border: 2px solid #ff0000;">
               <div style="margin-bottom: 5px; font-weight: bold; color: #ff8888;">⚠️ ${loc.zombies} zombies aquí</div>
               ${player.inventario.armas > 0 ? `
-                <button onclick="attack('shoot')" style="width: 100%; padding: 10px; margin: 3px 0; background: #660000; border: 1px solid #ff0000;">
+                <button onclick="attack('shoot')" style="width: 100%; padding: 10px; margin: 3px 0; background: #660000; border: 1px solid #ff0000;" ${attackCooldown > Date.now() ? 'disabled' : ''}>
                   🔫 DISPARAR (armas: ${player.inventario.armas}) - Alto daño, mucho ruido
                 </button>
               ` : ''}
-              <button onclick="attack('melee')" style="width: 100%; padding: 10px; margin: 3px 0; background: #664400; border: 1px solid #ffaa00;">
+              <button onclick="attack('melee')" style="width: 100%; padding: 10px; margin: 3px 0; background: #664400; border: 1px solid #ffaa00;" ${attackCooldown > Date.now() ? 'disabled' : ''}>
                 🥊 MELEE - Daño medio, poco ruido
               </button>
-              <button onclick="attack('stealth')" style="width: 100%; padding: 10px; margin: 3px 0; background: #004466; border: 1px solid #00aaff;">
+              <button onclick="attack('stealth')" style="width: 100%; padding: 10px; margin: 3px 0; background: #004466; border: 1px solid #00aaff;" ${attackCooldown > Date.now() ? 'disabled' : ''}>
                 🧑‍🦡 SIGILO - Kill silencioso o fallas (skill)
               </button>
             </div>
@@ -4460,6 +4462,14 @@
     }
 
     function attack(tipo) {
+      // Verificar cooldown local
+      const now = Date.now();
+      if (attackCooldown > now) {
+        const segundos = Math.ceil((attackCooldown - now) / 1000);
+        log(`⏳ Espera ${segundos}s antes de atacar de nuevo`, 'warning');
+        return;
+      }
+
       let confirmMsg = '';
       if (tipo === 'shoot') confirmMsg = '¿Disparar? Atraerá más zombies por el ruido.';
       else if (tipo === 'melee') confirmMsg = '¿Ataque cuerpo a cuerpo? Es arriesgado.';
@@ -4467,7 +4477,38 @@
       
       if (confirm(confirmMsg)) {
         ws.send(JSON.stringify({ type: 'attack', attackType: tipo }));
+        // Establecer cooldown (4s para shoot/melee, 2s para stealth)
+        attackCooldown = now + (tipo === 'stealth' ? 2000 : 4000);
+        startCooldownDisplay();
       }
+    }
+
+    function startCooldownDisplay() {
+      // Actualizar botones cada 100ms durante el cooldown
+      if (cooldownInterval) clearInterval(cooldownInterval);
+      
+      cooldownInterval = setInterval(() => {
+        const remaining = attackCooldown - Date.now();
+        if (remaining <= 0) {
+          clearInterval(cooldownInterval);
+          cooldownInterval = null;
+          renderGame(); // Refrescar para habilitar botones
+        } else {
+          updateAttackButtonsState(remaining);
+        }
+      }, 100);
+    }
+
+    function updateAttackButtonsState(remainingMs) {
+      const segundos = Math.ceil(remainingMs / 1000);
+      const buttons = document.querySelectorAll('[onclick^="attack("]');
+      buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        const originalText = btn.textContent.split('⏳')[0].trim();
+        btn.textContent = `${originalText} ⏳${segundos}s`;
+      });
     }
     
     function craft(item) {
@@ -4998,10 +5039,10 @@
       if (e.key === 's' || e.key === 'S') {
         scavenge();
       }
-      // C = Combat
-      if (e.key === 'c' || e.key === 'C') {
-        combat();
-      }
+      // C = Combat (deshabilitado, usar botones de combate)
+      // if (e.key === 'c' || e.key === 'C') {
+      //   combat();
+      // }
       // T = Trade
       if (e.key === 't' || e.key === 'T') {
         tradeWithNPC('comerciante');

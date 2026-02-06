@@ -2765,6 +2765,12 @@ wss.on('connection', (ws) => {
                 category: 'combat'
             });
 
+            // Enviar estado actualizado del mundo al jugador
+            ws.send(JSON.stringify({
+                type: 'world:state',
+                world: WORLD
+            }));
+
             return;
         }
 
