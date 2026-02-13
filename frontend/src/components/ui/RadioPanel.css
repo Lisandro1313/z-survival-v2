@@ -1,0 +1,131 @@
+/* RADIO PANEL */
+
+.radio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  height: 100%;
+}
+
+.radio-panel h3 {
+  color: var(--radio-frequency);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* No Radio State */
+.radio-status.no-radio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.equip-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  margin-top: var(--spacing-md);
+}
+
+/* Battery Status */
+.radio-battery {
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.battery-bar {
+  height: 20px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--spacing-sm);
+}
+
+.battery-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--radio-battery-ok) 0%, var(--radio-battery-ok) 50%, var(--radio-battery-low) 80%, var(--radio-battery-critical) 100%);
+  transition: width 0.3s;
+}
+
+.battery-text {
+  display: block;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Active Channels */
+.radio-channels {
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.radio-channels h4 {
+  margin-bottom: var(--spacing-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.no-channels {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: var(--spacing-md);
+}
+
+.channel-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.channel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.channel-freq {
+  color: var(--radio-frequency);
+  font-weight: bold;
+}
+
+/* Join Frequency */
+.radio-join {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.radio-join input {
+  flex: 1;
+}
+
+/* Send Message */
+.radio-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.radio-message textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Actions */
+.radio-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: auto;
+}

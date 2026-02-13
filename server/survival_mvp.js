@@ -26,6 +26,31 @@ import {
     logHandlerAction
 } from './utils/handlerMiddleware.js';
 
+// ====================================
+// FASE 11: Eventos Globales y Misiones Dinámicas
+// ====================================
+let globalEvents = null;
+let dynamicQuests = null;
+let constructionSystem = null; // FASE 12
+
+// Importación dinámica en inicialización
+(async function importPhase11Systems() {
+    try {
+        const globalEventsModule = await import('./world/globalEvents.js');
+        const dynamicQuestsModule = await import('./world/dynamicQuests.js');
+        const constructionModule = await import('./systems/ConstructionSystem.js');
+        
+        globalEvents = globalEventsModule.default;
+        dynamicQuests = dynamicQuestsModule.default;
+        constructionSystem = constructionModule.default;
+        
+        console.log('✅ Sistemas Fase 11 importados: GlobalEvents + DynamicQuests');
+        console.log('✅ Sistemas Fase 12 importados: ConstructionSystem');
+    } catch (error) {
+        console.error('❌ Error importando Fase 11-12:', error);
+    }
+})();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -8102,10 +8127,51 @@ setInterval(() => {
         console.log('📖 Motor de narrativa emergente activo');
         console.log('💕 Sistema de relaciones entre NPCs activo');
         console.log('🎭 NPCs participan en actividades sociales');
+        
+        // ====================================
+        // FASE 11: Configurar Callbacks
+        // ====================================
+        if (globalEvents) {
+            globalEvents.setBroadcastCallback(broadcast);
+            console.log('🌍 Global Events configurado con broadcast');
+        }
+        
+        if (dynamicQuests) {
+            dynamicQuests.setBroadcastCallback(broadcast);
+            console.log('🎯 Dynamic Quests configurado con broadcast');
+        }
+        
+        // ====================================
+        // FASE 12: Configurar Construction System
+        // ====================================
+        if (constructionSystem) {
+            constructionSystem.setBroadcastCallback(broadcast);
+            console.log('🏗️ Construction System configurado con broadcast');
+        }
+        
     } catch (error) {
         console.error('❌ Error inicializando Mundo Vivo:', error);
     }
 })();
+
+// ====================================
+// FASE 11: TICK de Eventos Globales y Misiones Dinámicas
+// ====================================
+setInterval(() => {
+    try {
+        // Tick de eventos globales (genera eventos aleatorios)
+        if (globalEvents && typeof globalEvents.tick === 'function') {
+            globalEvents.tick();
+        }
+        
+        // Auto-generar misiones dinámicas cada 2 minutos
+        if (dynamicQuests && typeof dynamicQuests.autoGenerateQuests === 'function') {
+            dynamicQuests.autoGenerateQuests();
+        }
+    } catch (error) {
+        console.error('❌ Error en tick Fase 11:', error);
+    }
+}, 120000); // Cada 2 minutos
 
 // ====================================
 // INICIAR

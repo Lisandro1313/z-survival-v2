@@ -1,9 +1,18 @@
 /**
  * Database Module - ES Module version con Promises
  * Usa better-sqlite3 con wrappers async para compatibilidad
+ * Funciona en modo mock si better-sqlite3 no está disponible
  */
 
-import Database from 'better-sqlite3';
+let Database;
+try {
+    const module = await import('better-sqlite3');
+    Database = module.default;
+} catch (err) {
+    console.warn('⚠️ better-sqlite3 no disponible, usando mock en memoria');
+    Database = null;
+}
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,40 +21,56 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const dbPath = path.join(__dirname, '../../manolitri_v2.db');
-const db = new Database(dbPath);
+const db = Database ? new Database(dbPath) : null;
+
+// Mock database para cuando better-sqlite3 no está disponible
+const mockDB = {
+    data: new Map(),
+    get(key) { return this.data.get(key); },
+    set(key, value) { this.data.set(key, value); },
+    all() { return Array.from(this.data.values()); }
+};
 
 // Habilitar foreign keys
-db.pragma('foreign_keys = ON');
+if (db) {
+    db.pragma('foreign_keys = ON');
+}
 
 // Wrapper para promisificar operaciones
 const dbAsync = {
     // SELECT que devuelve una fila
     get(sql, params = []) {
+        if (!db) return Promise.resolve(null);
         return Promise.resolve(db.prepare(sql).get(params));
     },
 
     // SELECT que devuelve todas las filas
     all(sql, params = []) {
+        if (!db) return Promise.resolve([]);
         return Promise.resolve(db.prepare(sql).all(params));
     },
 
     // INSERT, UPDATE, DELETE
     run(sql, params = []) {
+        if (!db) return Promise.resolve({ changes: 0, lastInsertRowid: 0 });
         return Promise.resolve(db.prepare(sql).run(params));
     },
 
     // Ejecutar SQL directo (para CREATE TABLE, etc)
     exec(sql) {
+        if (!db) return Promise.resolve();
         return Promise.resolve(db.exec(sql));
     },
 
     // Preparar statement (para uso avanzado)
     prepare(sql) {
+        if (!db) return { get: () => null, all: () => [], run: () => ({ changes: 0 }) };
         return db.prepare(sql);
     },
 
     // Cerrar base de datos
     close() {
+        if (!db) return Promise.resolve();
         return Promise.resolve(db.close());
     }
 };
@@ -53,6 +78,11 @@ const dbAsync = {
 // Inicializar base de datos
 async function initialize() {
     console.log('📦 Inicializando base de datos...');
+
+    if (!db) {
+        console.log('⚠️ Database en modo mock (sin persistencia)');
+        return;
+    }
 
     try {
         // Cargar schema principal (con todas las tablas para mundo vivo)

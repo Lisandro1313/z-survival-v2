@@ -14,6 +14,7 @@ import itemSystem from './systems/itemSystem.js';
 import globalEvents from './world/globalEvents.js';
 import partyManager from './managers/PartyManager.js';
 import dynamicQuests from './world/dynamicQuests.js';
+import constructionSystem from './systems/ConstructionSystem.js';
 
 class GameWebSocket {
     constructor() {
@@ -212,6 +213,64 @@ class GameWebSocket {
 
             case 'votar':
                 this.handleVote(ws, data);
+                break;
+
+            // ===== FASE 11: EVENTOS GLOBALES =====
+            case 'get_active_events':
+            case 'obtener_eventos_globales':
+                this.handleGetActiveEvents(ws, data);
+                break;
+
+            case 'claim_airdrop':
+            case 'reclamar_airdrop':
+                this.handleClaimAirdrop(ws, data);
+                break;
+
+            case 'buy_from_merchant':
+            case 'comprar_comerciante':
+                this.handleBuyFromMerchant(ws, data);
+                break;
+
+            // ===== FASE 11: MISIONES DINÁMICAS =====
+            case 'get_dynamic_quests':
+            case 'obtener_misiones_dinamicas':
+                this.handleGetDynamicQuests(ws, data);
+                break;
+
+            case 'accept_dynamic_quest':
+            case 'aceptar_mision_dinamica':
+                this.handleAcceptDynamicQuest(ws, data);
+                break;
+
+            case 'complete_dynamic_quest':
+            case 'completar_mision_dinamica':
+                this.handleCompleteDynamicQuest(ws, data);
+                break;
+
+            // ===== FASE 12: SISTEMA DE CONSTRUCCIÓN =====
+            case 'get_structures':
+            case 'obtener_estructuras':
+                this.handleGetStructures(ws, data);
+                break;
+
+            case 'get_construction_projects':
+            case 'obtener_proyectos':
+                this.handleGetConstructionProjects(ws, data);
+                break;
+
+            case 'start_construction':
+            case 'iniciar_construccion':
+                this.handleStartConstruction(ws, data);
+                break;
+
+            case 'contribute_construction':
+            case 'contribuir_construccion':
+                this.handleContributeConstruction(ws, data);
+                break;
+
+            case 'get_refuge_effects':
+            case 'obtener_efectos_refugio':
+                this.handleGetRefugeEffects(ws, data);
                 break;
 
             default:
@@ -1313,6 +1372,410 @@ class GameWebSocket {
                     }));
                 }
             });
+        }
+    }
+
+    // ==============================================
+    // FASE 11: EVENTOS GLOBALES
+    // ==============================================
+
+    handleGetActiveEvents(ws, data) {
+        try {
+            const activeEvents = globalEvents.getActiveEvents();
+
+            ws.send(JSON.stringify({
+                tipo: 'active_events',
+                events: activeEvents.map(event => ({
+                    id: event.id,
+                    type: event.type,
+                    title: event.title,
+                    description: event.description,
+                    endsAt: event.endsAt,
+                    status: event.status,
+                    effects: event.effects,
+                    location: event.location,
+                    inventory: event.inventory
+                }))
+            }));
+        } catch (error) {
+            console.error('Error obteniendo eventos globales:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al obtener eventos' }));
+        }
+    }
+
+    handleClaimAirdrop(ws, data) {
+        const { playerId, eventId } = data;
+
+        if (!playerId || !eventId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            // Obtener ubicación del jugador
+            const player = db.prepare('SELECT lugar_actual FROM players WHERE id = ?').get(playerId);
+
+            if (!player) {
+                ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+                return;
+            }
+
+            const result = globalEvents.claimAirdrop(eventId, playerId, player.lugar_actual);
+
+            if (result.success) {
+                // Agregar loot al inventario del jugador
+                const stmt = db.prepare('SELECT inventario FROM players WHERE id = ?');
+                const playerData = stmt.get(playerId);
+                const inventario = playerData.inventario ? JSON.parse(playerData.inventario) : {};
+
+                // Agregar items del loot
+                for (const [item, cantidad] of Object.entries(result.loot)) {
+                    inventario[item] = (inventario[item] || 0) + cantidad;
+                }
+
+                // Actualizar inventario
+                db.prepare('UPDATE players SET inventario = ? WHERE id = ?')
+                    .run(JSON.stringify(inventario), playerId);
+
+                ws.send(JSON.stringify({
+                    tipo: 'airdrop_claimed',
+                    loot: result.loot,
+                    message: '¡Airdrop reclamado con éxito!'
+                }));
+
+                console.log(`📦 Jugador ${playerId} reclamó airdrop ${eventId}`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: result.message
+                }));
+            }
+        } catch (error) {
+            console.error('Error reclamando airdrop:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al reclamar airdrop' }));
+        }
+    }
+
+    handleBuyFromMerchant(ws, data) {
+        const { playerId, eventId, itemId } = data;
+
+        if (!playerId || !eventId || !itemId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            // Obtener oro del jugador
+            const playerData = db.prepare('SELECT oro FROM players WHERE id = ?').get(playerId);
+
+            if (!playerData) {
+                ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+                return;
+            }
+
+            const result = globalEvents.buyFromMerchant(eventId, playerId, itemId, playerData.oro);
+
+            if (result.success) {
+                const item = result.item;
+
+                // Restar oro
+                const newOro = playerData.oro - item.precio;
+                db.prepare('UPDATE players SET oro = ? WHERE id = ?').run(newOro, playerId);
+
+                // Agregar item al inventario
+                const inventarioData = db.prepare('SELECT inventario FROM players WHERE id = ?').get(playerId);
+                const inventario = inventarioData.inventario ? JSON.parse(inventarioData.inventario) : {};
+                inventario[item.item] = (inventario[item.item] || 0) + 1;
+                db.prepare('UPDATE players SET inventario = ? WHERE id = ?')
+                    .run(JSON.stringify(inventario), playerId);
+
+                ws.send(JSON.stringify({
+                    tipo: 'merchant_purchase_success',
+                    item: item,
+                    newOro: newOro,
+                    message: `Compraste ${item.name} por ${item.precio} oro`
+                }));
+
+                console.log(`🛒 Jugador ${playerId} compró ${item.name} del comerciante`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: result.message
+                }));
+            }
+        } catch (error) {
+            console.error('Error comprando del comerciante:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al comprar' }));
+        }
+    }
+
+    // ==============================================
+    // FASE 11: MISIONES DINÁMICAS
+    // ==============================================
+
+    handleGetDynamicQuests(ws, data) {
+        const { playerId } = data;
+
+        try {
+            const activeQuests = dynamicQuests.getActiveQuests();
+
+            // Filtrar quests que el jugador puede aceptar
+            const availableQuests = activeQuests.filter(q => !q.acceptedBy && q.status === 'active');
+            const playerQuests = activeQuests.filter(q => q.acceptedBy === playerId);
+
+            ws.send(JSON.stringify({
+                tipo: 'dynamic_quests',
+                available: availableQuests,
+                accepted: playerQuests
+            }));
+
+            console.log(`🎯 Enviadas ${availableQuests.length} misiones dinámicas a jugador ${playerId}`);
+        } catch (error) {
+            console.error('Error obteniendo misiones dinámicas:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al obtener misiones' }));
+        }
+    }
+
+    handleAcceptDynamicQuest(ws, data) {
+        const { playerId, questId } = data;
+
+        if (!playerId || !questId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            const success = dynamicQuests.acceptQuest(questId, playerId);
+
+            if (success) {
+                const quest = dynamicQuests.getQuestById(questId);
+                ws.send(JSON.stringify({
+                    tipo: 'quest_accepted',
+                    quest: quest,
+                    message: `Misión "${quest.title}" aceptada`
+                }));
+
+                console.log(`🎯 Jugador ${playerId} aceptó misión dinámica ${questId}`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: 'No se pudo aceptar la misión'
+                }));
+            }
+        } catch (error) {
+            console.error('Error aceptando misión dinámica:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al aceptar misión' }));
+        }
+    }
+
+    handleCompleteDynamicQuest(ws, data) {
+        const { playerId, questId, success = true } = data;
+
+        if (!playerId || !questId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            const result = dynamicQuests.completeQuest(questId, playerId, success);
+
+            if (result.success) {
+                // Dar recompensas
+                if (result.rewards) {
+                    const playerData = db.prepare('SELECT nivel, xp, oro, reputacion FROM players WHERE id = ?')
+                        .get(playerId);
+
+                    if (playerData) {
+                        const newXp = (playerData.xp || 0) + (result.rewards.xp || 0);
+                        const newOro = (playerData.oro || 0) + (result.rewards.oro || 0);
+                        const newReputacion = (playerData.reputacion || 0) + (result.rewards.reputacion || 0);
+
+                        db.prepare(`
+                            UPDATE players 
+                            SET xp = ?, oro = ?, reputacion = ? 
+                            WHERE id = ?
+                        `).run(newXp, newOro, newReputacion, playerId);
+                    }
+                }
+
+                ws.send(JSON.stringify({
+                    tipo: 'quest_completed',
+                    questId: questId,
+                    rewards: result.rewards,
+                    message: result.message
+                }));
+
+                // Actualizar lista de quests
+                this.handleGetDynamicQuests(ws, { playerId });
+
+                console.log(`✅ Jugador ${playerId} completó misión dinámica ${questId}`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: result.message
+                }));
+            }
+        } catch (error) {
+            console.error('Error completando misión dinámica:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al completar misión' }));
+        }
+    }
+
+    // ==============================================
+    // FASE 12: SISTEMA DE CONSTRUCCIÓN
+    // ==============================================
+
+    handleGetStructures(ws, data) {
+        try {
+            const available = constructionSystem.getAvailableStructures();
+            const completed = constructionSystem.getCompletedStructures();
+
+            ws.send(JSON.stringify({
+                tipo: 'structures',
+                available,
+                completed
+            }));
+        } catch (error) {
+            console.error('Error obteniendo estructuras:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al obtener estructuras' }));
+        }
+    }
+
+    handleGetConstructionProjects(ws, data) {
+        try {
+            const projects = constructionSystem.getActiveProjects();
+
+            ws.send(JSON.stringify({
+                tipo: 'construction_projects',
+                projects
+            }));
+        } catch (error) {
+            console.error('Error obteniendo proyectos:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al obtener proyectos' }));
+        }
+    }
+
+    handleStartConstruction(ws, data) {
+        const { playerId, structureId, playerName } = data;
+
+        if (!playerId || !structureId) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            const result = constructionSystem.startConstruction(structureId, playerId, playerName || 'Jugador');
+
+            if (result.success) {
+                ws.send(JSON.stringify({
+                    tipo: 'construction_started',
+                    project: result.project,
+                    structure: result.structure,
+                    message: `Construcción de ${result.structure.name} iniciada`
+                }));
+
+                console.log(`🏗️ Jugador ${playerId} inició construcción de ${result.structure.name}`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: result.message,
+                    project: result.project
+                }));
+            }
+        } catch (error) {
+            console.error('Error iniciando construcción:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al iniciar construcción' }));
+        }
+    }
+
+    handleContributeConstruction(ws, data) {
+        const { playerId, projectId, resources, playerName } = data;
+
+        if (!playerId || !projectId || !resources) {
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Faltan datos' }));
+            return;
+        }
+
+        try {
+            // Verificar que el jugador tenga los recursos
+            const playerData = db.prepare('SELECT inventario FROM players WHERE id = ?').get(playerId);
+
+            if (!playerData) {
+                ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Jugador no encontrado' }));
+                return;
+            }
+
+            const inventario = playerData.inventario ? JSON.parse(playerData.inventario) : {};
+
+            // Verificar disponibilidad de recursos
+            for (const [resource, amount] of Object.entries(resources)) {
+                if ((inventario[resource] || 0) < amount) {
+                    ws.send(JSON.stringify({
+                        tipo: 'error',
+                        mensaje: `No tienes suficiente ${resource}. Tienes: ${inventario[resource] || 0}, necesitas: ${amount}`
+                    }));
+                    return;
+                }
+            }
+
+            // Restar recursos del inventario
+            for (const [resource, amount] of Object.entries(resources)) {
+                inventario[resource] -= amount;
+                if (inventario[resource] <= 0) {
+                    delete inventario[resource];
+                }
+            }
+
+            db.prepare('UPDATE players SET inventario = ? WHERE id = ?')
+                .run(JSON.stringify(inventario), playerId);
+
+            // Contribuir al proyecto
+            const result = constructionSystem.contribute(projectId, playerId, playerName || 'Jugador', resources);
+
+            if (result.success) {
+                if (result.structure) {
+                    // Construcción completada
+                    ws.send(JSON.stringify({
+                        tipo: 'construction_completed',
+                        structure: result.structure,
+                        effects: result.effects,
+                        message: result.message
+                    }));
+                } else {
+                    // Progreso actualizado
+                    ws.send(JSON.stringify({
+                        tipo: 'construction_contributed',
+                        project: result.project,
+                        progress: result.progress,
+                        message: result.message,
+                        newInventory: inventario
+                    }));
+                }
+
+                console.log(`🔨 Jugador ${playerId} contribuyó a proyecto ${projectId}`);
+            } else {
+                ws.send(JSON.stringify({
+                    tipo: 'error',
+                    mensaje: result.message
+                }));
+            }
+        } catch (error) {
+            console.error('Error contribuyendo a construcción:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al contribuir' }));
+        }
+    }
+
+    handleGetRefugeEffects(ws, data) {
+        try {
+            const effects = constructionSystem.getTotalRefugeEffects();
+
+            ws.send(JSON.stringify({
+                tipo: 'refuge_effects',
+                effects
+            }));
+        } catch (error) {
+            console.error('Error obteniendo efectos del refugio:', error);
+            ws.send(JSON.stringify({ tipo: 'error', mensaje: 'Error al obtener efectos' }));
         }
     }
 }

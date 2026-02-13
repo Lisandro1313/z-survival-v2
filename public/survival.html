@@ -2163,8 +2163,111 @@
               </div>
             </div>
 
-            <!-- Misiones Dinámicas & Feed Mundo -->
+            <!-- FASE 11: EVENTOS GLOBALES -->
+            <div class="card" style="margin-bottom: var(--space-lg); background: linear-gradient(135deg, rgba(0,100,200,0.1) 0%, rgba(0,50,100,0.2) 100%); border: 3px solid #00aaff;">
+              <h3 style="color: #00aaff; margin-bottom: var(--space-sm);">
+                🌍 EVENTOS GLOBALES <span style="font-size: 12px; color: var(--orange-warn);">(NUEVO)</span>
+              </h3>
+              <p style="color: var(--gray-text); font-size: 13px; margin-bottom: var(--space-md);">
+                Eventos que afectan a todos los jugadores simultáneamente: Hordas, Airdrops, Comerciantes, Clima
+              </p>
+              <button onclick="requestActiveEvents()" style="padding: 8px 16px; margin-bottom: var(--space-sm);">🔄 Actualizar</button>
+              <div id="globalEventsContainer" style="max-height: 500px; overflow-y: auto; font-size: 12px;">
+                <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg); font-style: italic;">⏳ Cargando eventos globales...</p>
+              </div>
+            </div>
+
+            <!-- FASE 12: SISTEMA DE CONSTRUCCIÓN -->
+            <div class="card" style="margin-bottom: var(--space-lg); background: linear-gradient(135deg, rgba(200,100,0,0.1) 0%, rgba(100,50,0,0.2) 100%); border: 3px solid var(--orange-warn);">
+              <h3 style="color: var(--orange-warn); margin-bottom: var(--space-sm);">
+                🏗️ CONSTRUCCIÓN COOPERATIVA <span style="font-size: 12px; color: #44ff44;">(FASE 12)</span>
+              </h3>
+              <p style="color: var(--gray-text); font-size: 13px; margin-bottom: var(--space-md);">
+                Construye estructuras junto a otros supervivientes para mejorar el refugio y obtener beneficios permanentes
+              </p>
+              <button onclick="requestConstructionData()" style="padding: 8px 16px; margin-bottom: var(--space-sm);">🔄 Actualizar</button>
+
+              <!-- Grid de 3 columnas: Estructuras | Proyectos | Beneficios -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-lg);">
+                
+                <!-- Estructuras Disponibles -->
+                <div style="grid-column: 1 / 3;">
+                  <h4 style="color: #ffaa00; margin: var(--space-md) 0; font-size: 14px; border-bottom: 2px solid #ffaa0033; padding-bottom: 8px;">
+                    📐 ESTRUCTURAS DISPONIBLES
+                  </h4>
+                  <div id="constructionStructuresContainer" style="max-height: 600px; overflow-y: auto;">
+                    <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando estructuras...</p>
+                  </div>
+                </div>
+
+                <!-- Beneficios del Refugio -->
+                <div>
+                  <h4 style="color: #44ff44; margin: var(--space-md) 0; font-size: 14px; border-bottom: 2px solid #44ff4433; padding-bottom: 8px;">
+                    ⭐ BENEFICIOS ACTIVOS
+                  </h4>
+                  <div id="refugeEffectsContainer" style="max-height: 300px; overflow-y: auto;">
+                    <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando...</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Proyectos Activos (ancho completo) -->
+              <div style="margin-top: var(--space-lg);">
+                <h4 style="color: #00aaff; margin: var(--space-md) 0; font-size: 14px; border-bottom: 2px solid #00aaff33; padding-bottom: 8px;">
+                  🚧 PROYECTOS EN CONSTRUCCIÓN
+                </h4>
+                <div id="constructionProjectsContainer" style="max-height: 400px; overflow-y: auto;">
+                  <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando proyectos...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- FASE 11: Misiones Dinámicas NUEVAS + Feed Mundo -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); margin-bottom: var(--space-lg);">
+              
+              <!-- Misiones Dinámicas (FASE 11) -->
+              <div class="card">
+                <h3 style="color: var(--purple-rare); margin-bottom: var(--space-sm);">
+                  🎯 MISIONES DINÁMICAS <span style="font-size: 11px; color: var(--orange-warn);">(FASE 11)</span>
+                </h3>
+                <p style="color: var(--gray-text); font-size: 12px; margin-bottom: var(--space-md);">
+                  Misiones generadas por relaciones y eventos del mundo
+                </p>
+                <button onclick="requestDynamicQuests()" style="padding: 8px 16px; margin-bottom: var(--space-sm);">🔄 Refrescar</button>
+                <div id="dynamicQuestsContainer" style="max-height: 500px; overflow-y: auto; font-size: 12px;">
+                  <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando misiones dinámicas...</p>
+                </div>
+              </div>
+
+              <!-- Misiones Legacy (Mundo Original) -->
+              <div class="card">
+                <h3 style="color: var(--orange-warn); margin-bottom: var(--space-sm);">
+                  ⚡ MISIONES (LEGACY) <span id="questCountBadge" style="font-size: 12px; color: var(--green-safe);"></span>
+                </h3>
+                <p style="color: var(--gray-text); font-size: 12px; margin-bottom: var(--space-md);">
+                  Sistema original de misiones
+                </p>
+                <button onclick="refreshQuests()" style="padding: 8px 16px; margin-bottom: var(--space-sm);">🔄 Refrescar</button>
+                <div id="questsList" style="max-height: 400px; overflow-y: auto; font-size: 12px;">
+                  <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando misiones...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Feed del Mundo -->
+            <div class="card" style="margin-bottom: var(--space-lg);">
+              <h3 style="color: var(--blue-info); margin-bottom: var(--space-sm);">📰 FEED DEL MUNDO</h3>
+              <p style="color: var(--gray-text); font-size: 12px; margin-bottom: var(--space-md);">
+                Los NPCs viven sus propias vidas...
+              </p>
+              <button onclick="refreshWorldEvents()" style="padding: 8px 16px; margin-bottom: var(--space-sm);">🔄 Refrescar</button>
+              <div id="worldEventsFeed" style="max-height: 400px; overflow-y: auto; font-size: 11px;">
+                <p style="text-align: center; color: var(--gray-text); padding: var(--space-lg);">⏳ Cargando eventos...</p>
+              </div>
+            </div>
+
+            <!-- Misiones Dinámicas & Feed Mundo -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); margin-bottom: var(--space-lg); display: none;">
               
               <!-- Misiones Dinámicas -->
               <div class="card">
@@ -3561,7 +3664,9 @@
         loadNarrativeMissions(); // Cargar misiones narrativas
       } else if (tabName === 'mundo') {
         hideBadge('mundo');
-        refreshQuests(); // Refrescar misiones al abrir tab
+        refreshQuests(); // Refrescar misiones legacy
+        requestDynamicQuests(); // FASE 11: Misiones dinámicas
+        requestActiveEvents(); // FASE 11: Eventos globales
       }
       
       // Lazy loading: cargar contenido solo la primera vez
@@ -3587,6 +3692,8 @@
             refreshWorldEvents();
             loadIntenseRelationships();
             loadWorldStats();
+            requestDynamicQuests(); // FASE 11
+            requestActiveEvents(); // FASE 11
             break;
           case 'progression':
             loadDefaultLeaderboard();
@@ -3604,6 +3711,8 @@
       } else if (tabName === 'mundo') {
         // Siempre refrescar datos del mundo al abrir
         refreshWorldEvents();
+        requestDynamicQuests(); // FASE 11
+        requestActiveEvents(); // FASE 11
         loadIntenseRelationships();
         loadWorldStats();
       }
@@ -4364,6 +4473,656 @@
 
     // ====================================
     // FIN SISTEMA DE MISIONES DINÁMICAS
+    // ====================================
+
+    // ====================================
+    // FASE 11: EVENTOS GLOBALES
+    // ====================================
+
+    function requestActiveEvents() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'get_active_events' }));
+    }
+
+    function renderGlobalEvents(events) {
+      const container = document.getElementById('globalEventsContainer');
+      if (!container) return;
+
+      if (!events || events.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No hay eventos globales activos.</p>';
+        return;
+      }
+
+      const eventsHTML = events.map(event => {
+        const timeLeft = event.endsAt - Date.now();
+        const minutesLeft = Math.floor(timeLeft / 60000);
+        const secondsLeft = Math.floor((timeLeft % 60000) / 1000);
+
+        const eventIcons = {
+          zombie_horde: '🧟',
+          airdrop: '📦',
+          traveling_merchant: '🛒',
+          weather: '☔'
+        };
+
+        const eventColors = {
+          zombie_horde: '#ff0000',
+          airdrop: '#00ff00',
+          traveling_merchant: '#ffaa00',
+          weather: '#4488ff'
+        };
+
+        const icon = eventIcons[event.type] || '🌍';
+        const color = eventColors[event.type] || '#888';
+
+        let actionButton = '';
+        if (event.type === 'airdrop' && event.status === 'active') {
+          actionButton = `
+            <button onclick="claimAirdrop('${event.id}')" style="
+              background: #00ff00;
+              color: #000;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              width: 100%;
+              margin-top: 10px;
+              font-size: 14px;
+            ">📦 RECLAMAR AIRDROP</button>
+          `;
+        } else if (event.type === 'traveling_merchant' && event.status === 'active') {
+          actionButton = `
+            <button onclick="showMerchantInventory('${event.id}')" style="
+              background: #ffaa00;
+              color: #000;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              width: 100%;
+              margin-top: 10px;
+              font-size: 14px;
+            ">🛒 VER TIENDA</button>
+          `;
+        }
+
+        return `
+          <div class="event-card" style="
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(30,30,30,0.95) 100%);
+            border: 3px solid ${color};
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 20px ${color}50;
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <h3 style="margin: 0; color: ${color}; font-size: 18px; font-weight: bold;">
+                ${icon} ${event.title}
+              </h3>
+              <span style="
+                background: ${color};
+                color: #000;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+              ">
+                ⏱️ ${minutesLeft}m ${secondsLeft}s
+              </span>
+            </div>
+
+            <p style="font-size: 13px; color: #ddd; margin: 12px 0; line-height: 1.5;">
+              ${event.description}
+            </p>
+
+            ${event.location ? `
+              <div style="margin: 10px 0; font-size: 12px; color: #ffaa00;">
+                📍 Ubicación: ${event.location}
+              </div>
+            ` : ''}
+
+            ${event.effects ? `
+              <div style="margin: 10px 0; font-size: 11px; color: #ff6666;">
+                ⚠️ Efectos: ${JSON.stringify(event.effects)}
+              </div>
+            ` : ''}
+
+            ${actionButton}
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = eventsHTML;
+    }
+
+    function claimAirdrop(eventId) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'claim_airdrop',
+        eventId,
+        playerId: player.id
+      }));
+    }
+
+    function showMerchantInventory(eventId) {
+      // Solicitar inventario del comerciante
+      requestActiveEvents();
+      
+      // Buscar el evento del comerciante
+      // Esto se implementará después con un modal
+      showNotification('🛒 Sistema de tienda en desarrollo', 'info');
+    }
+
+    function buyFromMerchant(eventId, itemId) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'buy_from_merchant',
+        eventId,
+        itemId,
+        playerId: player.id
+      }));
+    }
+
+    // ====================================
+    // FASE 11: MISIONES DINÁMICAS
+    // ====================================
+
+    function requestDynamicQuests() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ 
+        type: 'get_dynamic_quests', 
+        playerId: player.id 
+      }));
+    }
+
+    function renderDynamicQuests(available, accepted) {
+      const container = document.getElementById('dynamicQuestsContainer');
+      if (!container) return;
+
+      if ((!available || available.length === 0) && (!accepted || accepted.length === 0)) {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No hay misiones dinámicas disponibles.</p>';
+        return;
+      }
+
+      let html = '';
+
+      if (accepted && accepted.length > 0) {
+        html += '<h3 style="color: #ffaa00; margin-bottom: 15px;">🎯 Misiones Aceptadas</h3>';
+        html += accepted.map(quest => renderDynamicQuestCard(quest, true)).join('');
+      }
+
+      if (available && available.length > 0) {
+        html += '<h3 style="color: #4488ff; margin: 20px 0 15px 0;">✨ Misiones Disponibles</h3>';
+        html += available.map(quest => renderDynamicQuestCard(quest, false)).join('');
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderDynamicQuestCard(quest, isAccepted) {
+      const typeIcons = {
+        romance: '💕',
+        matchmaker: '💘',
+        mediation: '🕊️',
+        rivalry: '⚔️',
+        jealousy: '😒',
+        investigation: '🔍'
+      };
+
+      const typeColors = {
+        romance: '#ff4488',
+        matchmaker: '#ff88cc',
+        mediation: '#44ff44',
+        rivalry: '#ffaa00',
+        jealousy: '#aa00aa',
+        investigation: '#4488ff'
+      };
+
+      const icon = typeIcons[quest.type] || '⚡';
+      const color = typeColors[quest.type] || '#888';
+      
+      const timeLeft = quest.expiresAt - Date.now();
+      const minutesLeft = Math.floor(timeLeft / 60000);
+      const isExpiringSoon = minutesLeft < 3;
+
+      return `
+        <div class="quest-card-dynamic" style="
+          background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(30,30,30,0.95) 100%);
+          border: 2px solid ${color};
+          border-radius: 10px;
+          padding: 18px;
+          margin-bottom: 18px;
+          ${isExpiringSoon ? 'animation: pulse 1s infinite;' : ''}
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+            <h4 style="margin: 0; color: ${color}; font-size: 16px;">
+              ${icon} ${quest.title}
+            </h4>
+            <span style="
+              background: ${isExpiringSoon ? '#ff0000' : '#333'};
+              color: white;
+              padding: 5px 10px;
+              border-radius: 5px;
+              font-size: 11px;
+              font-weight: bold;
+            ">
+              ⏱️ ${minutesLeft}min
+            </span>
+          </div>
+
+          <p style="font-size: 12px; color: #ccc; margin: 12px 0; line-height: 1.5;">
+            ${quest.description}
+          </p>
+
+          <div style="margin: 12px 0;">
+            <strong style="color: ${color}; font-size: 12px;">OBJETIVOS:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px; font-size: 11px; color: #aaa;">
+              ${quest.objectives.map(obj => {
+                let objText = obj.type || obj;
+                if (obj.item) objText += `: ${obj.item} x${obj.required || 1}`;
+                if (obj.npc) objText += `: ${obj.npc}`;
+                return `<li>${objText}</li>`;
+              }).join('')}
+            </ul>
+          </div>
+
+          ${quest.rewards ? `
+            <div style="margin: 12px 0;">
+              <strong style="color: #ffaa00; font-size: 12px;">RECOMPENSAS:</strong>
+              <div style="font-size: 11px; color: #ffcc00; margin-top: 5px;">
+                ${quest.rewards.xp ? `⭐ +${quest.rewards.xp} XP` : ''}
+                ${quest.rewards.reputacion ? ` | 📊 +${quest.rewards.reputacion} Rep` : ''}
+                ${quest.rewards.oro ? ` | 💰 +${quest.rewards.oro} Oro` : ''}
+              </div>
+            </div>
+          ` : ''}
+
+          ${isAccepted ? `
+            <button onclick="completeDynamicQuest('${quest.id}', true)" style="
+              background: #44ff44;
+              color: #000;
+              border: none;
+              padding: 10px 15px;
+              border-radius: 5px;
+              cursor: pointer;
+              font-weight: bold;
+              margin-right: 8px;
+              font-size: 13px;
+            ">✅ COMPLETAR</button>
+            <button onclick="completeDynamicQuest('${quest.id}', false)" style="
+              background: #ff4444;
+              color: #fff;
+              border: none;
+              padding: 10px 15px;
+              border-radius: 5px;
+              cursor: pointer;
+              font-size: 13px;
+            ">❌ FALLAR</button>
+          ` : `
+            <button onclick="acceptDynamicQuest('${quest.id}')" style="
+              background: ${color};
+              color: #fff;
+              border: none;
+              padding: 12px 24px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              width: 100%;
+              font-size: 14px;
+            ">🎯 ACEPTAR MISIÓN</button>
+          `}
+        </div>
+      `;
+    }
+
+    function acceptDynamicQuest(questId) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'accept_dynamic_quest',
+        questId,
+        playerId: player.id
+      }));
+    }
+
+    function completeDynamicQuest(questId, success) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      const confirmMsg = success 
+        ? '¿Completaste los objetivos de la misión dinámica?' 
+        : '¿Quieres marcar la misión dinámica como fallida?';
+
+      if (confirm(confirmMsg)) {
+        ws.send(JSON.stringify({
+          type: 'complete_dynamic_quest',
+          questId,
+          playerId: player.id,
+          success
+        }));
+      }
+    }
+
+    // Auto-actualizar eventos cada 30 segundos
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        requestActiveEvents();
+        requestDynamicQuests();
+        requestConstructionData(); // FASE 12
+      }
+    }, 30000);
+
+    // ====================================
+    // FIN FASE 11
+    // ====================================
+
+    // ====================================
+    // FASE 12: SISTEMA DE CONSTRUCCIÓN
+    // ====================================
+
+    function requestConstructionData() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'get_structures' }));
+      ws.send(JSON.stringify({ type: 'get_construction_projects' }));
+      ws.send(JSON.stringify({ type: 'get_refuge_effects' }));
+    }
+
+    function renderConstructionStructures(available, completed) {
+      const container = document.getElementById('constructionStructuresContainer');
+      if (!container) return;
+
+      if (!available || available.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No hay estructuras disponibles.</p>';
+        return;
+      }
+
+      const structuresByCategory = {};
+      available.forEach(structure => {
+        if (!structuresByCategory[structure.category]) {
+          structuresByCategory[structure.category] = [];
+        }
+        structuresByCategory[structure.category].push(structure);
+      });
+
+      let html = '';
+
+      const categoryNames = {
+        defense: '🛡️ Defensa',
+        resource: '📦 Recursos',
+        utility: '🔧 Utilidad',
+        crafting: '🛠️ Crafteo',
+        medical: '⚕️ Médico',
+        storage: '🏪 Almacén',
+        communication: '📡 Comunicación',
+        training: '🎯 Entrenamiento'
+      };
+
+      for (const [category, structures] of Object.entries(structuresByCategory)) {
+        html += `<h4 style="color: #ffaa00; margin: 20px 0 10px 0; border-bottom: 2px solid #ffaa0033; padding-bottom: 8px;">
+          ${categoryNames[category] || category.toUpperCase()}
+        </h4>`;
+
+        html += structures.map(structure => {
+          const costStr = Object.entries(structure.cost)
+            .map(([resource, amount]) => `${resource}: ${amount}`)
+            .join(' | ');
+
+          const effectsStr = Object.entries(structure.effects)
+            .map(([effect, value]) => `${effect}: +${value}`)
+            .join(' | ');
+
+          const isMaxLevel = structure.currentLevel >= structure.maxLevel;
+          const canBuild = structure.canBuild && !structure.hasActiveProject;
+
+          return `
+            <div class="construction-card" style="
+              background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(30,30,30,0.95) 100%);
+              border: 2px solid ${canBuild ? '#44ff44' : (isMaxLevel ? '#ffaa00' : '#888')};
+              border-radius: 10px;
+              padding: 16px;
+              margin-bottom: 16px;
+            ">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                <h4 style="margin: 0; color: ${canBuild ? '#44ff44' : '#ffaa00'}; font-size: 15px;">
+                  ${structure.icon} ${structure.name}
+                  <span style="font-size: 11px; color: #888; margin-left: 8px;">
+                    Nivel ${structure.currentLevel}/${structure.maxLevel}
+                  </span>
+                </h4>
+              </div>
+
+              <p style="font-size: 12px; color: #ccc; margin: 10px 0; line-height: 1.4;">
+                ${structure.description}
+              </p>
+
+              <div style="margin: 10px 0; font-size: 11px;">
+                <strong style="color: #ff6666;">COSTO:</strong> ${costStr}
+              </div>
+
+              <div style="margin: 10px 0; font-size: 11px;">
+                <strong style="color: #66ff66;">EFECTOS:</strong> ${effectsStr}
+              </div>
+
+              ${structure.hasActiveProject ? `
+                <div style="background: rgba(255,170,0,0.2); padding: 8px; border-radius: 5px; margin-top: 10px; font-size: 11px; color: #ffaa00;">
+                  ⚠️ Ya hay un proyecto activo para esta estructura
+                </div>
+              ` : (isMaxLevel ? `
+                <div style="background: rgba(255,215,0,0.2); padding: 8px; border-radius: 5px; margin-top: 10px; font-size: 11px; color: #ffd700;">
+                  ⭐ Nivel Máximo Alcanzado
+                </div>
+              ` : (canBuild ? `
+                <button onclick="startConstruction('${structure.id}')" style="
+                  background: #44ff44;
+                  color: #000;
+                  border: none;
+                  padding: 10px 20px;
+                  border-radius: 6px;
+                  cursor: pointer;
+                  font-weight: bold;
+                  width: 100%;
+                  margin-top: 10px;
+                  font-size: 13px;
+                ">🏗️ INICIAR CONSTRUCCIÓN</button>
+              ` : `
+                <div style="background: rgba(136,136,136,0.2); padding: 8px; border-radius: 5px; margin-top: 10px; font-size: 11px; color: #888;">
+                  ℹ️ No disponible actualmente
+                </div>
+              `))}
+            </div>
+          `;
+        }).join('');
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderConstructionProjects(projects) {
+      const container = document.getElementById('constructionProjectsContainer');
+      if (!container) return;
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No hay proyectos de construcción activos.</p>';
+        return;
+      }
+
+      const html = projects.map(project => {
+        const structure = project.structure;
+        if (!structure) return '';
+
+        const costStr = Object.entries(structure.cost)
+          .map(([resource, amount]) => `${resource}: ${amount}`)
+          .join(', ');
+
+        const contributors = Object.keys(project.contributions).length;
+
+        return `
+          <div class="project-card" style="
+            background: linear-gradient(135deg, rgba(0,100,200,0.1) 0%, rgba(0,50,100,0.2) 100%);
+            border: 2px solid #00aaff;
+            border-radius: 10px;
+            padding: 18px;
+            margin-bottom: 18px;
+          ">
+            <h4 style="color: #00aaff; margin: 0 0 12px 0; font-size: 16px;">
+              ${structure.icon} ${structure.name} (Nivel ${project.level})
+            </h4>
+
+            <div style="margin: 12px 0;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px;">
+                <span style="color: #ccc;">Progreso:</span>
+                <span style="color: #00aaff; font-weight: bold;">${project.progress.toFixed(1)}%</span>
+              </div>
+              <div style="background: #333; height: 20px; border-radius: 10px; overflow: hidden;">
+                <div style="
+                  background: linear-gradient(90deg, #00aaff 0%, #0088cc 100%);
+                  height: 100%;
+                  width: ${project.progress}%;
+                  transition: width 0.3s ease;
+                "></div>
+              </div>
+            </div>
+
+            <div style="font-size: 11px; color: #aaa; margin: 10px 0;">
+              👥 ${contributors} contribuyente(s) | 🛠️ Costo total: ${costStr}
+            </div>
+
+            <button onclick="showContributeModal('${project.id}', '${structure.name}')" style="
+              background: #00aaff;
+              color: #fff;
+              border: none;
+              padding: 10px 20px;
+              border-radius: 6px;
+              cursor: pointer;
+              font-weight: bold;
+              width: 100%;
+              font-size: 13px;
+            ">🔨 CONTRIBUIR RECURSOS</button>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = html;
+    }
+
+    function renderRefugeEffects(effects) {
+      const container = document.getElementById('refugeEffectsContainer');
+      if (!container) return;
+
+      const effectsList = [
+        { key: 'defense', label: '🛡️ Defensa', value: effects.defense, unit: '%' },
+        { key: 'foodPerHour', label: '🍖 Comida/hora', value: effects.foodPerHour, unit: '' },
+        { key: 'craftingCostReduction', label: '🛠️ Reducción crafteo', value: effects.craftingCostReduction, unit: '%' },
+        { key: 'hpRegenPerMinute', label: '⚕️ Regeneración HP', value: effects.hpRegenPerMinute, unit: '/min' },
+        { key: 'xpBonus', label: '⭐ Bonus XP', value: effects.xpBonus, unit: '%' },
+        { key: 'storageCapacity', label: '📦 Capacidad almacén', value: effects.storageCapacity, unit: '' }
+      ];
+
+      const html = effectsList
+        .filter(effect => effect.value > 0)
+        .map(effect => `
+          <div style="
+            background: rgba(68,255,68,0.1);
+            border: 1px solid #44ff4444;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <span style="font-size: 13px; color: #ddd;">${effect.label}</span>
+            <span style="font-size: 15px; color: #44ff44; font-weight: bold;">
+              +${effect.value}${effect.unit}
+            </span>
+          </div>
+        `).join('');
+
+      if (html) {
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '<p style="text-align: center; color: #888; padding: 20px;">No hay beneficios activos aún.</p>';
+      }
+    }
+
+    function startConstruction(structureId) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      if (!confirm('¿Iniciar proyecto de construcción? Otros jugadores podrán contribuir.')) {
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'start_construction',
+        structureId,
+        playerId: player.id,
+        playerName: player.nombre
+      }));
+    }
+
+    function showContributeModal(projectId, structureName) {
+      const resources = prompt(
+        `Contribuir a: ${structureName}\n\n` +
+        `Formato: recurso:cantidad, recurso:cantidad\n` +
+        `Ejemplo: madera:50, metal:30\n\n` +
+        `Recursos disponibles en tu inventario:\n` +
+        Object.entries(player.inventario || {})
+          .map(([r, q]) => `${r}: ${q}`)
+          .join(', ')
+      );
+
+      if (!resources) return;
+
+      try {
+        const resourcesObj = {};
+        resources.split(',').forEach(pair => {
+          const [resource, amount] = pair.trim().split(':');
+          if (resource && amount) {
+            resourcesObj[resource.trim()] = parseInt(amount);
+          }
+        });
+
+        contributeConstruction(projectId, resourcesObj);
+      } catch (error) {
+        showNotification('Formato inválido. Usa: recurso:cantidad, recurso:cantidad', 'warning');
+      }
+    }
+
+    function contributeConstruction(projectId, resources) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showNotification('No hay conexión con el servidor', 'warning');
+        return;
+      }
+
+      ws.send(JSON.stringify({
+        type: 'contribute_construction',
+        projectId,
+        resources,
+        playerId: player.id,
+        playerName: player.nombre
+      }));
+    }
+
+    // ====================================
+    // FIN FASE 12
     // ====================================
 
     // ====================================
@@ -5797,6 +6556,147 @@
         showActionFeedback(`Ahora estás en: ${msg.subLocationData.nombre}`, 'success');
       },
       
+      'error': (msg) => {
+        log(`⚠️ ERROR: ${msg.error || msg.mensaje}`, 'warning');
+      },
+
+      'admin:metrics': (msg) => {
+        console.log('📊 Métricas recibidas:', msg.metrics);
+        showMetricsModal(msg.metrics, msg.totalHandlers);
+      },
+
+      // ===== FASE 11: EVENTOS GLOBALES =====
+      'active_events': (msg) => {
+        console.log('🌍 Eventos globales recibidos:', msg.events);
+        renderGlobalEvents(msg.events);
+      },
+
+      'global_event:start': (msg) => {
+        const event = msg.event;
+        log(`🌍 ¡EVENTO GLOBAL! ${event.title}: ${event.description}`, 'evento');
+        showNotification(`${event.title}\n${event.description}`, 'warning');
+        playSound('loot'); // Sonido de alerta
+        
+        // Actualizar lista de eventos
+        requestActiveEvents();
+      },
+
+      'global_event:update': (msg) => {
+        log(`📢 ${msg.event.message}`, 'evento');
+        showNotification(msg.event.message, 'info');
+      },
+
+      'global_event:end': (msg) => {
+        const event = msg.event;
+        log(`✅ Evento terminado: ${event.message || event.type}`, 'success');
+        
+        // Actualizar lista de eventos
+        requestActiveEvents();
+      },
+
+      'airdrop_claimed': (msg) => {
+        const lootStr = Object.entries(msg.loot).map(([k,v]) => `${k}:${v}`).join(', ');
+        log(`📦 ${msg.message} Recibiste: ${lootStr}`, 'success');
+        showNotification(`¡Airdrop reclamado!\n${lootStr}`, 'success');
+        playSound('loot');
+        renderGame();
+      },
+
+      'merchant_purchase_success': (msg) => {
+        log(`🛒 ${msg.message}`, 'success');
+        showNotification(`Compraste: ${msg.item.name}\nOro restante: ${msg.newOro}`, 'success');
+        player.oro = msg.newOro;
+        renderGame();
+      },
+
+      // ===== FASE 11: MISIONES DINÁMICAS =====
+      'dynamic_quests': (msg) => {
+        console.log('🎯 Misiones dinámicas recibidas:', msg);
+        renderDynamicQuests(msg.available, msg.accepted);
+      },
+
+      'quest_accepted': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        showNotification(`Misión aceptada:\n${msg.quest.title}`, 'success');
+        requestDynamicQuests();
+      },
+
+      'quest_completed': (msg) => {
+        const rewardsStr = msg.rewards ? 
+          Object.entries(msg.rewards).map(([k,v]) => `${k}:${v}`).join(', ') : 
+          'Sin recompensas';
+        log(`✅ ${msg.message} | Recompensas: ${rewardsStr}`, 'success');
+        showNotification(`¡Misión completada!\n${rewardsStr}`, 'success');
+        playSound('achievement');
+        requestDynamicQuests();
+        renderGame();
+      },
+
+      'mission:new': (msg) => {
+        // Nueva misión dinámica generada
+        log(`🎯 Nueva misión disponible: ${msg.mission.title}`, 'evento');
+        showNotification(`Nueva misión:\n${msg.mission.title}`, 'info');
+        requestDynamicQuests();
+      },
+
+      // ===== FASE 12: SISTEMA DE CONSTRUCCIÓN =====
+      'structures': (msg) => {
+        console.log('🏗️ Estructuras recibidas:', msg);
+        renderConstructionStructures(msg.available, msg.completed);
+      },
+
+      'construction_projects': (msg) => {
+        console.log('🏗️ Proyectos recibidos:', msg.projects);
+        renderConstructionProjects(msg.projects);
+      },
+
+      'construction:started': (msg) => {
+        log(`🏗️ ${msg.message}`, 'success');
+        showNotification(`Construcción iniciada:\n${msg.project.structure.name}`, 'success');
+        requestConstructionData();
+      },
+
+      'construction:progress': (msg) => {
+        log(`🔨 ${msg.message}`, 'info');
+        requestConstructionData();
+      },
+
+      'construction:completed': (msg) => {
+        log(`🎉 ${msg.message}`, 'success');
+        showNotification(`¡Construcción completada!\n${msg.structure.name}\nBeneficios activos`, 'success');
+        playSound('achievement');
+        requestConstructionData();
+        renderGame();
+      },
+
+      'construction_started': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        showNotification(`Construcción iniciada:\n${msg.structure.name}`, 'success');
+        requestConstructionData();
+      },
+
+      'construction_contributed': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        if (msg.newInventory) {
+          player.inventario = msg.newInventory;
+        }
+        requestConstructionData();
+        renderGame();
+      },
+
+      'construction_completed': (msg) => {
+        log(`🎉 ${msg.message}`, 'success');
+        showNotification(`¡Construcción completada!\n${msg.structure.definition?.name || 'Estructura'}`, 'success');
+        playSound('achievement');
+        requestConstructionData();
+        renderGame();
+      },
+
+      'refuge_effects': (msg) => {
+        console.log('🏠 Efectos del refugio:', msg.effects);
+        renderRefugeEffects(msg.effects);
+      },
+
       'error': (msg) => {
         log(`⚠️ ERROR: ${msg.error || msg.mensaje}`, 'warning');
       },

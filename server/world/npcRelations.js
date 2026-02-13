@@ -26,6 +26,11 @@ class NPCRelationshipSystem {
 
     // ===== INICIALIZAR TABLA =====
     initializeSchema() {
+        if (!db) {
+            console.log('⚠️ NPCRelationshipSystem: Using mock mode (no persistence)');
+            return;
+        }
+        
         db.exec(`
             CREATE TABLE IF NOT EXISTS npc_relationships (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

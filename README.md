@@ -23,6 +23,34 @@
 - **Hordas de zombies** cada hora del juego
 - **Eventos emergentes** con decisiones y consecuencias
 
+### 🌟 FASE 11: Eventos Globales & Misiones Dinámicas
+
+- **4 Tipos de Eventos Globales**:
+  - 🧟 Zombie Horde - Hordas masivas que amenazan el refugio
+  - 📦 Supply Airdrop - Cajas de suministros del cielo
+  - 👤 Traveling Merchant - Comerciantes con items raros
+  - ⛈️ Severe Weather - Clima extremo con efectos especiales
+- **Misiones Dinámicas** generadas por relaciones y eventos
+- **Programación automática** de eventos cada 10-20 minutos
+- **Notificaciones en tiempo real** para todos los jugadores
+- **UI dedicada** con tarjetas de eventos y misiones
+
+### 🏗️ FASE 12: Construcción Cooperativa
+
+- **8 Estructuras construibles**:
+  - 🛡️ Defensive Wall - Aumenta defensa del refugio
+  - 🌿 Garden - Genera comida pasivamente
+  - 🗼 Watch Tower - Mejora detección de amenazas
+  - 🛠️ Workshop - Reduce costos de crafteo
+  - ⚕️ Infirmary - Regenera HP pasivamente
+  - 📦 Storage - Aumenta capacidad de inventario
+  - 📡 Radio Tower - Mejora rango de comunicación
+  - 🎯 Training Ground - Bonus de XP para todos
+- **Sistema de contribuciones** - Múltiples jugadores construyen juntos
+- **Progreso en tiempo real** con barras visuales
+- **Efectos permanentes** aplicados al refugio
+- **Sistema de niveles** - Mejora estructuras hasta nivel 3-5
+
 ### 🤝 Multijugador Cooperativo
 
 - **Quests cooperativas** con votación en tiempo real
@@ -246,13 +274,28 @@ nodemon server/survival_mvp.js
 
 ## 🔮 Roadmap
 
+### ✅ Completado
+
+- [x] FASE 1-10: Sistema base MVP con multijugador
+- [x] FASE 11: Eventos Globales & Misiones Dinámicas (~1,450 líneas)
+- [x] FASE 12: Sistema de Construcción Cooperativa (~1,200 líneas)
+
+### 🚧 En Desarrollo
+
+- [ ] FASE 13: Por determinar (opciones: Raids PvE, Clanes, Economía, Vehículos)
+
+### 🔮 Futuras Expansiones
+
 - [ ] Más locaciones (zona militar, hospital, mall)
-- [ ] Sistema de clanes/grupos
+- [ ] Sistema de clanes/grupos con territorios
+- [ ] Sistema de economía y comercio
+- [ ] Sistema de vehículos
 - [ ] Más eventos especiales
-- [ ] Sistema de logros
+- [ ] Sistema de logros y estadísticas
 - [ ] PvP opcional en zonas específicas
 - [ ] Más tipos de zombies (corredor, tanque, etc)
-- [ ] Sistema de comercio entre jugadores
+- [ ] Mapa más grande con sistema de chunks
+- [ ] Migración a motor 3D (Three.js/Babylon.js)
 
 ---
 

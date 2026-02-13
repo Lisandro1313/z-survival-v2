@@ -18,6 +18,11 @@ class NarrativeMissionSystem {
 
     // ===== SCHEMA =====
     initializeSchema() {
+        if (!db) {
+            console.log('⚠️ NarrativeMissionSystem: Using mock mode (no persistence)');
+            return;
+        }
+        
         try {
             // Tabla de misiones activas
             db.exec(`

@@ -1,0 +1,77 @@
+/* NODE INFO */
+
+.node-info {
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.node-info h3 {
+  font-size: 18px;
+  margin-bottom: var(--spacing-sm);
+  color: var(--accent-primary);
+}
+
+.node-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: var(--spacing-md);
+  line-height: 1.4;
+}
+
+.node-stats {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  font-size: 12px;
+}
+
+.node-type {
+  padding: 4px 8px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  text-transform: capitalize;
+}
+
+.node-danger {
+  padding: 4px 8px;
+  background-color: var(--accent-danger);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-weight: bold;
+}
+
+.node-players {
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--spacing-sm);
+  font-size: 12px;
+}
+
+.node-connections {
+  margin-top: var(--spacing-md);
+}
+
+.node-connections h4 {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+}
+
+.node-connections ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.node-connections li {
+  padding: 4px 8px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,125 @@
+/* CHAT WINDOW */
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  height: 50%;
+  min-height: 300px;
+  margin-top: var(--spacing-md);
+}
+
+.chat-window h3 {
+  margin-bottom: var(--spacing-sm);
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.no-messages {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-lg);
+}
+
+/* Chat Message */
+.chat-message {
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--chat-local);
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-message.msg-local {
+  border-left-color: var(--chat-local);
+}
+
+.chat-message.msg-radio {
+  border-left-color: var(--chat-radio);
+}
+
+.chat-message.msg-private {
+  border-left-color: var(--chat-private);
+  background-color: rgba(156, 39, 176, 0.1);
+}
+
+.chat-message.msg-intercepted {
+  border-left-color: var(--chat-intercepted);
+  background-color: rgba(255, 87, 34, 0.1);
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+  font-size: 12px;
+}
+
+.msg-icon {
+  font-size: 14px;
+}
+
+.msg-sender {
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.msg-frequency {
+  color: var(--radio-frequency);
+  font-family: monospace;
+}
+
+.msg-time {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.msg-body {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.msg-body p {
+  margin-bottom: var(--spacing-xs);
+}
+
+.msg-body p.garbled {
+  font-family: monospace;
+  color: var(--accent-warning);
+  letter-spacing: 1px;
+}
+
+.msg-encrypted,
+.msg-garbled {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+  margin-left: var(--spacing-xs);
+}
