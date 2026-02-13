@@ -391,6 +391,28 @@ export class WSServer {
             radioHandler.handleRadioStatus(ws, playerId);
             break;
 
+          // 🔐 RADIO ENCRYPTION
+          
+          case 'radio:create_encrypted':
+            radioHandler.handleRadioCreateEncrypted(ws, playerId, message);
+            break;
+          
+          case 'radio:share_key':
+            radioHandler.handleRadioShareKey(ws, playerId, message);
+            break;
+          
+          case 'radio:encrypted_channels':
+            radioHandler.handleRadioEncryptedChannels(ws, playerId);
+            break;
+          
+          case 'radio:rotate_key':
+            radioHandler.handleRadioRotateKey(ws, playerId, message);
+            break;
+          
+          case 'radio:delete_encrypted':
+            radioHandler.handleRadioDeleteEncrypted(ws, playerId, message);
+            break;
+
           // ====================================
           // SCAVENGE
           // ====================================

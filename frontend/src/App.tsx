@@ -10,6 +10,9 @@ import CharacterScreen from './components/screens/CharacterScreen';
 import GameScreen from './components/screens/GameScreen';
 import LoadingScreen from './components/screens/LoadingScreen';
 
+// UI Components
+import Notifications from './components/ui/Notifications';
+
 function App() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const { player } = useGameStore();
@@ -30,6 +33,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Notifications />
       <Routes>
         {/* Login - Solo si NO está autenticado */}
         <Route 

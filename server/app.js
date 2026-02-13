@@ -19,6 +19,9 @@ import playerRoutes from './routes/player.routes.js';
 import worldRoutes from './routes/world.routes.js';
 import tradeRoutes from './routes/trade.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import radioEncryptionRoutes from './routes/radioEncryption.routes.js';
+import performanceRoutes from './routes/performance.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 // World Systems
 import worldState from './world/WorldState.js';
@@ -29,6 +32,9 @@ import { notificationSystem } from './systems/NotificationSystem.js';
 
 // Database
 import survivalDB from './db/survivalDB.js';
+
+// Performance
+import { performanceMiddleware } from './middleware/performanceMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,11 +49,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS (si es necesario)
+// Performance monitoring
+app.use(performanceMiddleware);
+
+// CORS Configuration
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
   next();
 });
 
@@ -70,6 +86,9 @@ app.use('/api/player', playerRoutes);
 app.use('/api/world', worldRoutes);
 app.use('/api/trade', tradeRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/radio-encryption', radioEncryptionRoutes);
+app.use('/api/performance', performanceRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ====================================
 // LEGACY ROUTES (Compatibilidad)

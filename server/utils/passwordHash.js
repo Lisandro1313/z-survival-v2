@@ -90,22 +90,6 @@ export function validatePasswordStrength(password) {
         errors.push('Password debe tener al menos 8 caracteres');
     }
     
-    if (!/[a-z]/.test(password)) {
-        errors.push('Password debe contener al menos una letra minúscula');
-    }
-    
-    if (!/[A-Z]/.test(password)) {
-        errors.push('Password debe contener al menos una letra mayúscula');
-    }
-    
-    if (!/[0-9]/.test(password)) {
-        errors.push('Password debe contener al menos un número');
-    }
-    
-    if (password.length < 12 && !/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
-        errors.push('Password corto debe contener al menos un carácter especial');
-    }
-    
     // Detectar passwords comunes
     const commonPasswords = ['password', '12345678', 'qwerty', 'abc123', 'password123'];
     if (commonPasswords.includes(password.toLowerCase())) {

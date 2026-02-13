@@ -1,15 +1,18 @@
 /**
  * Database Manager para Survival Zombie
  * Maneja persistencia de usuarios y personajes
- * Funciona en modo mock si better-sqlite3 no está disponible
+ * Usa JsonDatabase si better-sqlite3 no está disponible
  */
 
 let Database;
+let jsonDB;
 try {
     const module = await import('better-sqlite3');
     Database = module.default;
 } catch (err) {
-    console.warn('⚠️ better-sqlite3 no disponible, usando mock en memoria');
+    console.warn('⚠️ better-sqlite3 no disponible, usando JsonDatabase');
+    const jsonModule = await import('./JsonDatabase.js');
+    jsonDB = jsonModule.default;
     Database = null;
 }
 
@@ -41,25 +44,20 @@ if (db) {
         }
     }
 
-    console.log('✅ Base de datos inicializada');
-} else {
-    console.log('⚠️ Base de datos en modo mock (sin persistencia)');
+    console.log('✅ Base de datos SQLite inicializada');
+} else if (jsonDB) {
+    console.log('✅ JsonDatabase inicializada (persistencia con archivos)');
 }
-
-// Mock data cuando no hay base de datos
-const mockData = {
-    usuarios: [],
-    personajes: [],
-    stats: []
-};
 
 // ===== USUARIOS =====
 
 function crearUsuario(username, password) {
+    if (jsonDB) {
+        return jsonDB.createUser(username, password);
+    }
+    
     if (!db) {
-        const id = mockData.usuarios.length + 1;
-        mockData.usuarios.push({ id, username, password });
-        return id; // Retornar solo el ID
+        throw new Error('No hay base de datos disponible');
     }
     
     try {
@@ -72,8 +70,12 @@ function crearUsuario(username, password) {
 }
 
 function getUserByUsername(username) {
+    if (jsonDB) {
+        return jsonDB.getUserByUsername(username);
+    }
+    
     if (!db) {
-        return mockData.usuarios.find(u => u.username === username) || null;
+        throw new Error('No hay base de datos disponible');
     }
     
     const stmt = db.prepare('SELECT * FROM usuarios WHERE username = ?');
@@ -81,8 +83,12 @@ function getUserByUsername(username) {
 }
 
 function getUserById(userId) {
+    if (jsonDB) {
+        return jsonDB.getUserById(userId);
+    }
+    
     if (!db) {
-        return mockData.usuarios.find(u => u.id === userId) || null;
+        throw new Error('No hay base de datos disponible');
     }
     
     const stmt = db.prepare('SELECT * FROM usuarios WHERE id = ?');
@@ -90,9 +96,16 @@ function getUserById(userId) {
 }
 
 function loginUsuario(username, password) {
+    if (jsonDB) {
+        const user = jsonDB.getUserByUsername(username);
+        if (user && user.password === password) {
+            return user;
+        }
+        return null;
+    }
+    
     if (!db) {
-        const user = mockData.usuarios.find(u => u.username === username && u.password === password);
-        return user || null;
+        throw new Error('No hay base de datos disponible');
     }
     
     const stmt = db.prepare('SELECT * FROM usuarios WHERE username = ? AND password = ?');
@@ -137,11 +150,9 @@ function crearPersonaje(usuarioId, datos) {
         mecanica: 1 + (bonus.mecanica || 0)
     };
 
-    if (!db) {
-        const id = mockData.personajes.length + 1;
-        mockData.personajes.push({
-            id,
-            usuario_id: usuarioId,
+    if (jsonDB) {
+        const id = jsonDB.createPlayer({
+            usuarioId,
             nombre,
             clase,
             fuerza: finalFuerza,
@@ -151,9 +162,19 @@ function crearPersonaje(usuarioId, datos) {
             avatar,
             color,
             skills: JSON.stringify(skills),
-            inventario: '[]'
+            inventario: '[]',
+            nivel: 1,
+            xp: 0,
+            xp_siguiente_nivel: 100,
+            salud: 100,
+            hambre: 100,
+            locacion: 'zona_segura'
         });
         return { success: true, id };
+    }
+
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
     }
 
     const stmt = db.prepare(`
@@ -187,21 +208,30 @@ function crearPersonaje(usuarioId, datos) {
 }
 
 function obtenerPersonajes(usuarioId) {
-    if (!db) {
-        return mockData.personajes.filter(p => p.usuario_id === usuarioId);
+    if (jsonDB) {
+        return jsonDB.getPlayersByUserId(usuarioId);
     }
+    
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
+    }
+    
     const stmt = db.prepare('SELECT * FROM personajes WHERE usuario_id = ? ORDER BY ultima_conexion DESC');
     return stmt.all(usuarioId);
 }
 
 function obtenerPersonaje(personajeId) {
-    if (!db) {
-        const personaje = mockData.personajes.find(p => p.id === personajeId);
+    if (jsonDB) {
+        const personaje = jsonDB.getPlayerById(personajeId);
         if (personaje) {
             personaje.inventario = JSON.parse(personaje.inventario);
             personaje.skills = JSON.parse(personaje.skills);
         }
         return personaje;
+    }
+    
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
     }
     
     const stmt = db.prepare('SELECT * FROM personajes WHERE id = ?');
@@ -215,15 +245,80 @@ function obtenerPersonaje(personajeId) {
     return personaje;
 }
 
-function guardarProgreso(personajeId, datos) {
-    if (!db) {
-        const personaje = mockData.personajes.find(p => p.id === personajeId);
-        if (personaje) {
-            Object.assign(personaje, datos);
-        }
-        return;
+function getPlayerByName(nombre) {
+    if (jsonDB) {
+        return jsonDB.getPlayerByName(nombre);
     }
     
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
+    }
+    
+    const stmt = db.prepare('SELECT * FROM personajes WHERE nombre = ?');
+    return stmt.get(nombre) || null;
+}
+
+/**
+ * Crear player directamente desde un objeto
+ * (usado por AuthController)
+ */
+function createPlayer(playerData) {
+    if (jsonDB) {
+        const id = jsonDB.createPlayer(playerData);
+        return id;
+    }
+    
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
+    }
+    
+    // Para SQLite, convertir a formato compatible
+    const {
+        usuarioId,
+        nombre,
+        clase,
+        avatar = '👤',
+        color = '#00ff00',
+        nivel = 1,
+        xp = 0,
+        salud = 100,
+        saludMax = 100,
+        hambre = 100,
+        stamina = 100,
+        ubicacion = 'refugio',
+        inventario = '{}',
+        stats = '{}',
+        skills = '{}'
+    } = playerData;
+    
+    const stmt = db.prepare(`
+        INSERT INTO personajes 
+        (usuario_id, nombre, clase, avatar, color, nivel, xp, salud, hambre, inventario, skills)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    try {
+        const result = stmt.run(
+            usuarioId,
+            nombre,
+            clase,
+            avatar,
+            color,
+            nivel,
+            xp,
+            salud,
+            hambre,
+            inventario,
+            skills
+        );
+        
+        return result.lastInsertRowid;
+    } catch (err) {
+        throw new Error(err.message);
+    }
+}
+
+function guardarProgreso(personajeId, datos) {
     const {
         nivel,
         xp,
@@ -235,6 +330,24 @@ function guardarProgreso(personajeId, datos) {
         skills
     } = datos;
 
+    if (jsonDB) {
+        jsonDB.updatePlayer(personajeId, {
+            nivel,
+            xp,
+            xp_siguiente_nivel,
+            salud,
+            hambre,
+            locacion,
+            inventario: JSON.stringify(inventario),
+            skills: JSON.stringify(skills)
+        });
+        return;
+    }
+    
+    if (!db) {
+        throw new Error('No hay base de datos disponible');
+    }
+    
     const stmt = db.prepare(`
         UPDATE personajes 
         SET nivel = ?, xp = ?, xp_siguiente_nivel = ?, salud = ?, hambre = ?, 
@@ -282,12 +395,17 @@ export default {
     createUser: crearUsuario,
     getUserByUsername,
     getUserById,
+    getPlayerByName,
     loginUsuario,
     crearPersonaje,
+    createPlayer,
     obtenerPersonajes,
+    getPlayersByUser: obtenerPersonajes,
     obtenerPersonaje,
+    getPlayer: obtenerPersonaje,
     guardarProgreso,
     actualizarEstadisticas,
     obtenerEstadisticas,
-    db
+    db,
+    jsonDB
 };

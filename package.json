@@ -27,6 +27,6 @@
     "ws": "^8.16.0"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^9.4.0"
+    "better-sqlite3": "^9.6.0"
   }
 }

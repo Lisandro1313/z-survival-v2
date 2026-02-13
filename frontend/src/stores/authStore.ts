@@ -42,21 +42,31 @@ export const useAuthStore = create<AuthState>()(
 
       // Login
       login: async (username: string, password: string) => {
+        console.log('🔵 authStore.login llamado', { username });
         set({ isLoading: true, error: null });
         
         try {
+          console.log('📡 Enviando request a:', 'http://localhost:3000/api/auth/login');
           const response = await fetch('http://localhost:3000/api/auth/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include',
             body: JSON.stringify({ usuario: username, password })
           });
 
+          console.log('📥 Response status:', response.status);
+
           if (!response.ok) {
             const error = await response.json();
+            console.error('❌ Error response:', error);
             throw new Error(error.error || 'Login failed');
           }
 
           const data = await response.json();
+          console.log('✅ Login exitoso:', data);
 
           set({
             user: { userId: data.userId, username: data.usuario },
@@ -70,6 +80,7 @@ export const useAuthStore = create<AuthState>()(
           return true;
 
         } catch (error: any) {
+          console.error('❌ Login error:', error);
           set({
             error: error.message,
             isLoading: false,
@@ -81,21 +92,31 @@ export const useAuthStore = create<AuthState>()(
 
       // Register
       register: async (username: string, password: string) => {
+        console.log('🔵 authStore.register llamado', { username });
         set({ isLoading: true, error: null });
         
         try {
+          console.log('📡 Enviando request a:', 'http://localhost:3000/api/auth/register');
           const response = await fetch('http://localhost:3000/api/auth/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include',
             body: JSON.stringify({ usuario: username, password })
           });
 
+          console.log('📥 Response status:', response.status);
+
           if (!response.ok) {
             const error = await response.json();
+            console.error('❌ Error response:', error);
             throw new Error(error.error || error.issues?.join(', ') || 'Registration failed');
           }
 
           const data = await response.json();
+          console.log('✅ Registro exitoso:', data);
 
           set({
             user: { userId: data.userId, username: data.usuario },
@@ -109,6 +130,7 @@ export const useAuthStore = create<AuthState>()(
           return true;
 
         } catch (error: any) {
+          console.error('❌ Register error:', error);
           set({
             error: error.message,
             isLoading: false,
@@ -140,7 +162,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           const response = await fetch('http://localhost:3000/api/auth/refresh', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include',
             body: JSON.stringify({ refreshToken })
           });
 

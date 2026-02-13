@@ -13,6 +13,7 @@
 import communicationService from '../../services/CommunicationService.js';
 import worldState from '../../world/WorldState.js';
 import RadioDevice, { RADIO_TYPES, BATTERY_TYPES } from '../../models/RadioDevice.js';
+import { radioEncryptionSystem } from '../../systems/RadioEncryptionSystem.js';
 
 /**
  * EQUIPAR RADIO
@@ -159,7 +160,7 @@ export function handleRadioLeave(ws, playerId, data) {
  * ENVIAR MENSAJE POR RADIO
  */
 export function handleRadioMessage(ws, playerId, data) {
-  const { frequency, text } = data;
+  const { frequency, text, encrypted } = data;
 
   if (!text || text.trim().length === 0) {
     return ws.send(JSON.stringify({
@@ -175,7 +176,25 @@ export function handleRadioMessage(ws, playerId, data) {
     }));
   }
 
-  const result = communicationService.sendRadioMessage(playerId, frequency, text);
+  // Manejar mensaje encriptado
+  let messageToSend = text;
+  let encryptedData = null;
+
+  if (encrypted && radioEncryptionSystem.hasAccess(playerId, frequency)) {
+    try {
+      encryptedData = radioEncryptionSystem.encryptMessage(frequency, text);
+      messageToSend = `[ENCRYPTED:${encryptedData.fingerprint}]`;
+      console.log(`🔐 Mensaje encriptado en ${frequency} por jugador ${playerId}`);
+    } catch (error) {
+      console.error('Error encriptando mensaje:', error);
+      return ws.send(JSON.stringify({
+        type: 'error',
+        error: 'No se pudo encriptar el mensaje',
+      }));
+    }
+  }
+
+  const result = communicationService.sendRadioMessage(playerId, frequency, messageToSend, encryptedData);
 
   if (!result.success) {
     return ws.send(JSON.stringify({
@@ -191,6 +210,7 @@ export function handleRadioMessage(ws, playerId, data) {
     recipients: result.recipients,
     batteryRemaining: result.batteryRemaining,
     intercepted: result.intercepted.length > 0,
+    encrypted: encrypted && encryptedData !== null,
   }));
 
   // Log si fue interceptado
@@ -354,23 +374,176 @@ export function handleRadioRecharge(ws, playerId, data) {
 /**
  * OBTENER ESTADO DEL RADIO
  */
-export function handleRadioStatus(ws, playerId) {
-  const player = worldState.getPlayer(playerId);
-  if (!player) {
+/**
+ * 🔐 CREAR CANAL ENCRIPTADO
+ */
+export function handleRadioCreateEncrypted(ws, playerId, data) {
+  const { frequency, customKey } = data;
+
+  if (!frequency) {
     return ws.send(JSON.stringify({
       type: 'error',
-      error: 'Jugador no encontrado',
+      error: 'Frecuencia no especificada',
     }));
   }
 
-  const status = player.equippedRadio 
-    ? player.equippedRadio.getStatus() 
-    : { equipped: false };
+  try {
+    const result = radioEncryptionSystem.createEncryptedChannel(
+      frequency,
+      playerId,
+      customKey
+    );
 
-  ws.send(JSON.stringify({
-    type: 'radio:status',
-    radio: status,
-  }));
+    ws.send(JSON.stringify({
+      type: 'radio:encrypted_created',
+      channelId: result.channelId,
+      key: result.key,
+      fingerprint: result.fingerprint,
+    }));
+
+    console.log(`🔐 Canal encriptado creado: ${frequency} por jugador ${playerId}`);
+  } catch (error) {
+    console.error('Error creating encrypted channel:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error.message,
+    }));
+  }
+}
+
+/**
+ * 🔐 COMPARTIR CLAVE DE CANAL
+ */
+export function handleRadioShareKey(ws, playerId, data) {
+  const { targetPlayerId, channelId, key } = data;
+
+  if (!targetPlayerId || !channelId || !key) {
+    return ws.send(JSON.stringify({
+      type: 'error',
+      error: 'Parámetros incompletos',
+    }));
+  }
+
+  // Verificar que el solicitante tenga acceso
+  if (!radioEncryptionSystem.hasAccess(playerId, channelId)) {
+    return ws.send(JSON.stringify({
+      type: 'error',
+      error: 'No tienes acceso a este canal',
+    }));
+  }
+
+  try {
+    radioEncryptionSystem.grantAccess(targetPlayerId, channelId, key);
+
+    // Notificar al receptor
+    const targetWs = worldState.getPlayerWebSocket(targetPlayerId);
+    if (targetWs) {
+      targetWs.send(JSON.stringify({
+        type: 'radio:key_received',
+        channelId,
+        key,
+        from: playerId,
+      }));
+    }
+
+    ws.send(JSON.stringify({
+      type: 'radio:key_shared',
+      targetPlayerId,
+      channelId,
+    }));
+
+    console.log(`🔐 Clave compartida de ${channelId}: ${playerId} → ${targetPlayerId}`);
+  } catch (error) {
+    console.error('Error sharing key:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error.message,
+    }));
+  }
+}
+
+/**
+ * 🔐 LISTAR CANALES ENCRIPTADOS
+ */
+export function handleRadioEncryptedChannels(ws, playerId) {
+  try {
+    const channels = radioEncryptionSystem.getPlayerChannels(playerId);
+
+    ws.send(JSON.stringify({
+      type: 'radio:encrypted_channels',
+      channels,
+    }));
+  } catch (error) {
+    console.error('Error listing encrypted channels:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error.message,
+    }));
+  }
+}
+
+/**
+ * 🔐 ROTAR CLAVE DE CANAL
+ */
+export function handleRadioRotateKey(ws, playerId, data) {
+  const { channelId } = data;
+
+  if (!channelId) {
+    return ws.send(JSON.stringify({
+      type: 'error',
+      error: 'Canal no especificado',
+    }));
+  }
+
+  try {
+    const result = radioEncryptionSystem.rotateChannelKey(channelId, playerId);
+
+    ws.send(JSON.stringify({
+      type: 'radio:key_rotated',
+      channelId,
+      newKey: result.newKey,
+      newFingerprint: result.newFingerprint,
+    }));
+
+    console.log(`🔄 Clave rotada para canal ${channelId} por jugador ${playerId}`);
+  } catch (error) {
+    console.error('Error rotating key:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error.message,
+    }));
+  }
+}
+
+/**
+ * 🔐 ELIMINAR CANAL ENCRIPTADO
+ */
+export function handleRadioDeleteEncrypted(ws, playerId, data) {
+  const { channelId } = data;
+
+  if (!channelId) {
+    return ws.send(JSON.stringify({
+      type: 'error',
+      error: 'Canal no especificado',
+    }));
+  }
+
+  try {
+    radioEncryptionSystem.deleteChannel(channelId, playerId);
+
+    ws.send(JSON.stringify({
+      type: 'radio:encrypted_deleted',
+      channelId,
+    }));
+
+    console.log(`🗑️ Canal encriptado eliminado: ${channelId} por jugador ${playerId}`);
+  } catch (error) {
+    console.error('Error deleting encrypted channel:', error);
+    ws.send(JSON.stringify({
+      type: 'error',
+      error: error.message,
+    }));
+  }
 }
 
 export default {
@@ -384,5 +557,10 @@ export default {
   handleRadioFrequencies,
   handleRadioBattery,
   handleRadioRecharge,
-  handleRadioStatus,
+  handleRadioCreateEncrypted,
+  handleRadioShareKey,
+  handleRadioEncryptedChannels,
+  handleRadioRotateKey,
+  handleRadioDeleteEncrypted,
 };
+

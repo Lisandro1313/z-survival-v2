@@ -6,6 +6,7 @@ node_modules/
 *.sqlite
 *.sqlite3
 server/db/*.db
+server/db/data/*.json
 
 # Logs
 *.log

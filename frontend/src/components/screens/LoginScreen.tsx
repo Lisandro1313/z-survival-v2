@@ -15,12 +15,17 @@ function LoginScreen() {
   const { login, register, isLoading, error, clearError } = useAuthStore();
   const { addNotification } = useGameStore();
 
+  console.log('🔵 LoginScreen render', { username, isRegistering, isLoading });
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    
+    console.log('🔵 handleSubmit llamado', { username, password: '***', isRegistering });
     
     clearError();
     
     if (!username || !password) {
+      console.log('⚠️ Campos incompletos');
       addNotification({
         type: 'warning',
         message: 'Completa todos los campos',
@@ -29,6 +34,7 @@ function LoginScreen() {
     }
 
     if (password.length < 8) {
+      console.log('⚠️ Password muy corto');
       addNotification({
         type: 'warning',
         message: 'La contraseña debe tener al menos 8 caracteres',
@@ -36,24 +42,31 @@ function LoginScreen() {
       return;
     }
 
+    console.log(`🚀 Intentando ${isRegistering ? 'registro' : 'login'}...`);
+    
     try {
       const success = isRegistering 
         ? await register(username, password)
         : await login(username, password);
       
+      console.log('✅ Respuesta recibida:', success);
+      
       if (success) {
         addNotification({
           type: 'success',
-          message: isRegistering ? '¡Registro exitoso!' : '¡Bienvenido!',
+          message: isRegistering ? '✅ ¡Registro exitoso!' : '✅ ¡Bienvenido!',
         });
       } else {
+        // Mostrar el error específico del servidor
+        const errorMsg = error || (isRegistering ? 'Error al registrarse' : 'Error al iniciar sesión');
+        console.log('⚠️ Mostrando error:', errorMsg);
         addNotification({
           type: 'error',
-          message: error || (isRegistering ? 'Error al registrarse' : 'Error al iniciar sesión'),
+          message: errorMsg,
         });
       }
     } catch (error) {
-      console.error('Auth error:', error);
+      console.error('❌ Auth error:', error);
       addNotification({
         type: 'error',
         message: 'Error de conexión con el servidor',
@@ -106,7 +119,10 @@ function LoginScreen() {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => setIsRegistering(!isRegistering)}
+            onClick={() => {
+              console.log('🔄 Cambiando modo:', isRegistering ? 'Login' : 'Registro');
+              setIsRegistering(!isRegistering);
+            }}
             disabled={isLoading}
           >
             {isRegistering ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
