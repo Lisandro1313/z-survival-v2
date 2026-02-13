@@ -85,7 +85,7 @@ export async function init() {
     window.renderEvents = uiModule.renderEvents;
     window.renderWorldStats = uiModule.renderWorldStats;
     window.renderOnlinePlayers = uiModule.renderOnlinePlayers;
-    
+
     // Exponer sistema de logros globalmente
     window.achievementSystem = gameState.achievementSystem;
     window.statsRenderer = gameState.statsRenderer;

@@ -11,32 +11,38 @@
 ### ✅ Completado (FASES 1-10)
 
 #### **FASE 1-2: Fundamentos y Renders Defensivos**
+
 - Sistema de renderizado defensivo (safeRender)
 - Manejo de errores en UI
 - Estructura base del cliente
 
 #### **FASE 3: Auditoría WebSocket**
+
 - 60+ handlers en cliente documentados
 - 45+ handlers en servidor documentados
 - Flujo de mensajes mapeado
 
 #### **FASE 4-6: Arquitectura y Optimización**
+
 - **Dispatcher Pattern**: 37+ handlers migrados
 - **Caching System**: 5 handlers con TTL (~78% reducción de queries)
 - **Rate Limiting**: 7 handlers protegidos (~96% reducción de spam)
 - **Broadcast Batching**: Ventana de 50ms (~70% reducción de syscalls)
 
 #### **FASE 7: Optimizaciones Finales**
+
 - 5 handlers adicionales con cache/rate limit
 - Métricas de rendimiento
 - Sistema de logging mejorado
 
 #### **FASE 8: Clean Code + UX**
+
 - **Toast Notifications**: Sistema profesional (éxito, error, warning, info, confirm)
 - **Loading States**: Botones con spinners durante operaciones
 - **Service Layer Inicial**: ResourceService, CombatService, CraftingService
 
 #### **FASE 9: Service Layer Completo**
+
 - **7 Services independientes**:
   - ResourceService (scavenging con validación)
   - CombatService (batalla, XP, escape)
@@ -49,6 +55,7 @@
 - **Handlers refactorizados**: move, eat, heal con middleware composition
 
 #### **FASE 10: Logros y Efectos Visuales** ⭐ ÚLTIMA ACTUALIZACIÓN
+
 - **Sistema de Logros**:
   - 12 achievements en 6 categorías
   - Sistema de rareza (common → uncommon → rare → epic)
@@ -91,12 +98,12 @@ server/
     - Caching + Rate Limiting
     - 37+ handlers migrados
     - Broadcasting optimizado
-  
+
   services/
     GameServices.js (1,100 líneas)
       - 7 services independientes
       - Lógica de negocio separada
-  
+
   utils/
     handlerMiddleware.js (350 líneas)
       - 7 middlewares composables
@@ -110,13 +117,13 @@ public/
     - Achievement system (350+ líneas)
     - Combat effects (150+ líneas)
     - Particle system (100+ líneas)
-  
+
   style.css (1,990 líneas)
     - Sistema de variables CSS
     - Responsive design
     - Achievement styles
     - Animation keyframes
-  
+
   js/
     game.js - Entry point modular
     ui/
@@ -139,10 +146,13 @@ public/
 ### **FASE 11: Misiones Dinámicas y Eventos Globales** (Prioridad Alta)
 
 #### A. Sistema de Misiones Dinámicas
+
 **Objetivo**: Misiones que se generan según el estado del mundo
 
 **Tareas**:
+
 1. **Generador de Misiones**:
+
    ```javascript
    class MissionGenerator {
      generateFromWorldState(world) {
@@ -151,6 +161,7 @@ public/
      }
    }
    ```
+
    - Misiones de escasez: "El refugio necesita 50 comida"
    - Misiones de amenaza: "Zombies se acercan a la plaza"
    - Misiones sociales: "Juan necesita ayuda"
@@ -166,6 +177,7 @@ public/
    - Reputation con facciones
 
 **Archivos a crear/modificar**:
+
 - `server/systems/MissionGenerator.js` (nuevo)
 - `server/survival_mvp.js` (agregar generación periódica)
 - `public/survival.html` (UI de misiones dinámicas)
@@ -175,9 +187,11 @@ public/
 ---
 
 #### B. Eventos Globales del Mundo
+
 **Objetivo**: Eventos que afectan a todos los jugadores simultáneamente
 
 **Tipos de Eventos**:
+
 1. **Hordas de Zombies**:
    - Spawn masivo de zombies (x3 en todas las locaciones)
    - Duración: 30 minutos
@@ -199,13 +213,14 @@ public/
    - Tormenta: Bloquea movimiento
 
 **Implementación**:
+
 ```javascript
 class GlobalEventManager {
   constructor() {
     this.activeEvents = [];
     this.eventSchedule = this.generateEventSchedule();
   }
-  
+
   triggerEvent(eventType) {
     const event = this.createEvent(eventType);
     this.activeEvents.push(event);
@@ -216,6 +231,7 @@ class GlobalEventManager {
 ```
 
 **Archivos a crear/modificar**:
+
 - `server/systems/GlobalEventManager.js` (nuevo)
 - `server/survival_mvp.js` (integrar eventos en tick)
 - `public/survival.html` (banner de eventos activos)
@@ -229,6 +245,7 @@ class GlobalEventManager {
 #### Objetivo: Permitir a jugadores construir estructuras en el refugio
 
 **Estructuras**:
+
 1. **Muros Defensivos**: +10% defensa refugio (300 madera, 200 metal)
 2. **Huerto**: Genera 5 comida/hora (150 madera, 50 agua)
 3. **Torre de Vigilancia**: Alerta temprana de hordas (400 madera, 100 metal)
@@ -236,6 +253,7 @@ class GlobalEventManager {
 5. **Enfermería**: Curación pasiva +1 HP/minuto (200 madera, 100 medicina)
 
 **Sistema de Construcción**:
+
 ```javascript
 class ConstructionSystem {
   startConstruction(playerId, structureType) {
@@ -243,7 +261,7 @@ class ConstructionSystem {
     // Crear proyecto de construcción
     // Progreso: 0% → 100% (múltiples jugadores pueden contribuir)
   }
-  
+
   contributeToConstruction(playerId, structureId, resources) {
     // Agregar recursos al proyecto
     // Incrementar progreso
@@ -253,11 +271,13 @@ class ConstructionSystem {
 ```
 
 **Beneficios**:
+
 - Sistema cooperativo (todos contribuyen)
 - Beneficios permanentes para el refugio
 - Sensación de progresión grupal
 
 **Archivos a crear**:
+
 - `server/systems/ConstructionSystem.js`
 - `server/data/structures.json`
 - `public/survival.html` (pestaña "Construcción")
@@ -271,6 +291,7 @@ class ConstructionSystem {
 #### Objetivo: Agregar clases de personaje con habilidades únicas
 
 **Clases**:
+
 1. **Soldado**:
    - +20% daño en combate
    - Habilidad: "Rafaga" (ataque doble, cooldown 5 turnos)
@@ -297,20 +318,21 @@ class ConstructionSystem {
    - Pasiva: +20 tokens por comercio
 
 **Sistema de Habilidades**:
+
 ```javascript
 class AbilitySystem {
   useAbility(playerId, abilityId) {
     const player = WORLD.players[playerId];
     const ability = ABILITIES[abilityId];
-    
+
     // Validar cooldown
     if (this.isOnCooldown(playerId, abilityId)) {
-      return { error: 'Habilidad en cooldown' };
+      return { error: "Habilidad en cooldown" };
     }
-    
+
     // Ejecutar habilidad
     ability.execute(player, WORLD);
-    
+
     // Iniciar cooldown
     this.startCooldown(playerId, abilityId, ability.cooldown);
   }
@@ -318,6 +340,7 @@ class AbilitySystem {
 ```
 
 **Archivos a crear**:
+
 - `server/systems/AbilitySystem.js`
 - `server/data/classes.json`
 - `server/data/abilities.json`
@@ -330,23 +353,28 @@ class AbilitySystem {
 ### **FASE 14: Sistema Económico Avanzado** (Prioridad Baja)
 
 #### A. Mercado de Jugadores
+
 **Objetivo**: Jugadores pueden poner items en venta
 
 **Características**:
+
 - Listings con precio fijo o subasta
 - Comisión de 10% al refugio
 - Búsqueda y filtros
 - Ofertas y contraofertivas
 
 #### B. Misiones de Bounty
+
 **Objetivo**: Jugadores pueden crear misiones para otros
 
 **Ejemplo**:
+
 - "Necesito 50 madera, pago 100 tokens"
 - "Busco escolta para ir al hospital, pago 200 tokens"
 - "Mata 10 zombies en la plaza, recompensa: Escopeta"
 
 **Archivos a crear**:
+
 - `server/systems/MarketSystem.js`
 - `server/systems/BountySystem.js`
 
@@ -357,13 +385,16 @@ class AbilitySystem {
 ### **FASE 15: PvP y Facciones** (Prioridad Baja)
 
 #### Sistema de Facciones
+
 **Facciones Principales**:
+
 1. **Los Refugiados**: Cooperación, construcción, defensa
 2. **Los Nómadas**: Exploración, comercio, supervivencia
 3. **Los Científicos**: Investigación, crafteo avanzado, medicina
 4. **Los Saqueadores**: PvP, robo, combate
 
 **Mecánicas**:
+
 - Jugadores pueden unirse a una facción
 - Misiones exclusivas de facción
 - Recompensas únicas (items, títulos)
@@ -371,6 +402,7 @@ class AbilitySystem {
 - PvP opcional entre facciones enemigas
 
 **Archivos a crear**:
+
 - `server/systems/FactionSystem.js`
 - `server/systems/PvPSystem.js`
 - `server/data/factions.json`
@@ -382,24 +414,28 @@ class AbilitySystem {
 ## 🛠️ MEJORAS TÉCNICAS PENDIENTES
 
 ### Performance
+
 - [ ] Migrar base de datos a PostgreSQL (mejor que SQLite para multiplayer)
 - [ ] Implementar Redis para caching avanzado
 - [ ] Websocket clustering para escalabilidad
 - [ ] Compresión de mensajes WebSocket (gzip)
 
 ### Testing
+
 - [ ] Unit tests para services (Jest)
 - [ ] Integration tests para handlers
 - [ ] Load testing con Artillery
 - [ ] E2E tests con Playwright
 
 ### DevOps
+
 - [ ] CI/CD con GitHub Actions
 - [ ] Deploy automático a Railway/Render
 - [ ] Monitoreo con Sentry
 - [ ] Logs centralizados con Winston
 
 ### Seguridad
+
 - [ ] Validación de inputs más estricta
 - [ ] Rate limiting por IP (además de por jugador)
 - [ ] Sanitización de nombres y mensajes
@@ -410,6 +446,7 @@ class AbilitySystem {
 ## 📚 RECURSOS Y DOCUMENTACIÓN
 
 ### Archivos de Documentación Existentes
+
 - `FASE1-2_RENDERS_DEFENSIVOS.md` - Fundamentos
 - `FASE3_AUDITORIA_WEBSOCKET.md` - Handlers mapeados
 - `FASE4-6_MIGRACION_COMPLETA.md` - Dispatcher pattern
@@ -419,6 +456,7 @@ class AbilitySystem {
 - `FASE10_LOGROS_ANIMACIONES.md` - Achievement system completo ⭐
 
 ### Recursos Externos
+
 - [Socket.io Documentation](https://socket.io/docs/v4/)
 - [Express.js Best Practices](https://expressjs.com/en/advanced/best-practice-performance.html)
 - [MDN Web Animations API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Animations_API)
@@ -429,22 +467,26 @@ class AbilitySystem {
 ## 🚀 CÓMO EMPEZAR DESDE OTRA COMPUTADORA
 
 ### 1. Clonar el Repositorio
+
 ```bash
 git clone https://github.com/Lisandro1313/z-survival-v2.git
 cd z-survival-v2
 ```
 
 ### 2. Instalar Dependencias
+
 ```bash
 npm install
 ```
 
 ### 3. Inicializar Base de Datos
+
 ```bash
 node server/db/index.js
 ```
 
 ### 4. Iniciar Servidor
+
 ```bash
 npm start
 # O si usas survival_mvp.js:
@@ -452,11 +494,13 @@ node server/survival_mvp.js
 ```
 
 ### 5. Abrir en Navegador
+
 ```
 http://localhost:3000
 ```
 
 ### 6. Test Rápido de Funcionalidades
+
 1. Crear personaje
 2. Mover a otra ubicación → Logro "Primer Paso" ✓
 3. Atacar zombie → Ver números flotantes ✓
@@ -468,6 +512,7 @@ http://localhost:3000
 ## 🎨 IDEAS PARA MEJORAS DE UI/UX
 
 ### Corto Plazo
+
 - [ ] Dark/Light mode toggle
 - [ ] Hotkeys configurables
 - [ ] Tutorial interactivo para nuevos jugadores
@@ -475,6 +520,7 @@ http://localhost:3000
 - [ ] Filtros en inventario
 
 ### Medio Plazo
+
 - [ ] Temas visuales (cyberpunk, post-apocalyptic, etc.)
 - [ ] Animaciones de transición entre pestañas
 - [ ] Chat con emojis y markdown
@@ -482,6 +528,7 @@ http://localhost:3000
 - [ ] Modo offline (PWA)
 
 ### Largo Plazo
+
 - [ ] Mobile app nativa (React Native)
 - [ ] Modo VR exploratorio
 - [ ] Twitch integration (viewers juegan)
@@ -492,12 +539,14 @@ http://localhost:3000
 ## 📊 MÉTRICAS Y KPIs
 
 ### Actuales (a monitorear)
+
 - ✅ Tasa de conversión (registro → primer movimiento): ~85%
 - ✅ Tiempo promedio de sesión: 15-20 min
 - ✅ Retención D1: ~60%
 - ✅ NPCs activos: 10-14 acciones/tick
 
 ### Objetivos para Q2 2026
+
 - [ ] 100+ jugadores concurrentes
 - [ ] Retención D7: >40%
 - [ ] Sesión promedio: 30 min
@@ -509,15 +558,18 @@ http://localhost:3000
 ## 🐛 BUGS CONOCIDOS Y PENDIENTES
 
 ### Críticos
+
 - Ninguno actualmente ✅
 
 ### Menores
+
 - [ ] Algunos NPCs repiten diálogos
 - [ ] Raramente, el cooldown de scavenge no se resetea
 - [ ] En mobile, algunos popups se salen de pantalla
 - [ ] El sort de leaderboard a veces no es correcto
 
 ### Mejoras Deseables
+
 - [ ] Optimizar renderizado (solo re-render lo que cambió)
 - [ ] Lazy loading de imágenes de NPCs
 - [ ] Precarga de sonidos en background
@@ -528,11 +580,13 @@ http://localhost:3000
 ## 💡 COMUNIDAD Y FEEDBACK
 
 ### Canales de Feedback
+
 - GitHub Issues: Reportes de bugs
 - GitHub Discussions: Ideas y sugerencias
 - Discord (opcional): Comunidad de jugadores
 
 ### Proceso de Contribución
+
 1. Fork del repositorio
 2. Crear branch: `feature/nombre-feature`
 3. Commits descriptivos
@@ -544,16 +598,19 @@ http://localhost:3000
 ## 📝 NOTAS IMPORTANTES
 
 ### Base de Datos
+
 - **Archivo**: `server/db/survival.sqlite`
 - **Backup recomendado**: Cada 24 horas
 - **Migración a PostgreSQL**: Recomendada para >50 jugadores concurrentes
 
 ### Configuración
+
 - **Puerto**: 3000 (cambiar en `server/survival_mvp.js`)
 - **WebSocket**: ws:// (wss:// para producción con HTTPS)
 - **Tick Rate**: 30 segundos (ajustable en SIMULATION_TICK)
 
 ### Deploy
+
 - **Railway.app**: Requiere `railway.json` (ya incluido)
 - **Render**: Requiere `render.yaml` (crear si es necesario)
 - **Variables de entorno necesarias**:
@@ -565,21 +622,25 @@ http://localhost:3000
 ## 🎯 ROADMAP TIMELINE
 
 **Q1 2026 (Febrero - Marzo)**:
+
 - ✅ FASE 1-10 completadas
 - 🔄 FASE 11: Misiones dinámicas
 - 🔄 FASE 12: Sistema de construcción
 
 **Q2 2026 (Abril - Junio)**:
+
 - FASE 13: Clases y habilidades
 - FASE 14: Economía avanzada
 - Testing y optimización
 
 **Q3 2026 (Julio - Septiembre)**:
+
 - FASE 15: PvP y facciones
 - Mobile optimization
 - Marketing y growth
 
 **Q4 2026 (Octubre - Diciembre)**:
+
 - Eventos especiales (Halloween, Navidad)
 - Expansión de contenido
 - Community features
@@ -589,6 +650,7 @@ http://localhost:3000
 ## 🎉 LOGROS DEL PROYECTO
 
 ### Técnicos
+
 ✅ 8,120 líneas de servidor optimizado  
 ✅ 10,336 líneas de cliente funcional  
 ✅ 37+ handlers con dispatcher pattern  
@@ -598,9 +660,10 @@ http://localhost:3000
 ✅ Broadcasting optimizado (~70% mejora)  
 ✅ 12 achievements con sistema de rareza  
 ✅ Efectos visuales profesionales  
-✅ 0 errores críticos  
+✅ 0 errores críticos
 
 ### Gameplay
+
 ✅ Sistema de combate por turnos  
 ✅ 10+ NPCs con IA social  
 ✅ Sistema de relaciones dinámico  
@@ -610,7 +673,7 @@ http://localhost:3000
 ✅ Eventos globales  
 ✅ Sistema de achievements  
 ✅ Juegos de casino (Póker, Ruleta, Blackjack, Dados)  
-✅ Fogata social  
+✅ Fogata social
 
 ---
 

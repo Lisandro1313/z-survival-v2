@@ -1,6 +1,7 @@
 # 🚀 Guía para Subir a GitHub
 
 ## Estado Actual
+
 - ✅ Git inicializado
 - ✅ .gitignore configurado
 - ⚠️ Remote apunta a repo antiguo (Manolitri)
@@ -24,6 +25,7 @@ git remote -v
 ```
 
 **Resultado esperado**:
+
 ```
 origin  https://github.com/Lisandro1313/z-survival-v2.git (fetch)
 origin  https://github.com/Lisandro1313/z-survival-v2.git (push)
@@ -67,6 +69,7 @@ git push origin main
 ```
 
 **Si te pide autenticación**:
+
 - Usar Personal Access Token (no password)
 - Ir a: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
 - Generar token con permisos: `repo`, `workflow`
@@ -86,6 +89,7 @@ git push origin main
 ## Si Hay Conflictos o Problemas
 
 ### El repositorio no existe en GitHub
+
 ```bash
 # Crear el repo en GitHub primero:
 # 1. Ir a https://github.com/new
@@ -98,6 +102,7 @@ git push origin main
 ```
 
 ### Ya hay contenido en el repositorio remoto
+
 ```bash
 # Opción 1: Forzar push (CUIDADO: sobrescribe todo)
 git push -f origin main
@@ -111,6 +116,7 @@ git push origin main
 ```
 
 ### Error de autenticación
+
 ```bash
 # Configurar credenciales
 git config --global user.name "Lisandro1313"
@@ -125,6 +131,7 @@ git remote set-url origin git@github.com:Lisandro1313/z-survival-v2.git
 ## Comandos Útiles
 
 ### Ver estado actual
+
 ```bash
 git status              # Ver archivos modificados
 git log --oneline       # Ver historial de commits
@@ -133,6 +140,7 @@ git branch -a          # Ver todas las ramas
 ```
 
 ### Deshacer cambios
+
 ```bash
 git checkout .         # Deshacer cambios no commiteados
 git reset HEAD~1       # Deshacer último commit (mantiene cambios)
@@ -140,6 +148,7 @@ git reset --hard HEAD~1 # Deshacer último commit (BORRA cambios)
 ```
 
 ### Limpiar archivos no deseados
+
 ```bash
 git clean -fd          # Borrar archivos no rastreados
 git rm --cached -r .   # Quitar archivos del índice (después agregar a .gitignore)
@@ -188,6 +197,7 @@ z-survival-v2/
 ## Después de Subir
 
 ### 1. Crear README.md atractivo
+
 ```markdown
 # 🧟 Z-Survival v2.0
 
@@ -196,6 +206,7 @@ Juego de supervivencia zombie multiplayer con sistema de logros y efectos visual
 [Demo Live](URL) | [Documentación](NEXT_STEPS.md) | [Changelog](FASE10_LOGROS_ANIMACIONES.md)
 
 ## ✨ Features
+
 - ⚔️ Combate por turnos con efectos visuales
 - 🏆 Sistema de achievements (12 logros)
 - 🤖 NPCs con IA social
@@ -204,23 +215,30 @@ Juego de supervivencia zombie multiplayer con sistema de logros y efectos visual
 - 📜 Misiones narrativas
 
 ## 🚀 Quick Start
+
 \`\`\`bash
 npm install
 npm start
+
 # Open http://localhost:3000
+
 \`\`\`
 
 ## 📊 Tech Stack
+
 Node.js | Express | WebSocket | SQLite | Vanilla JS
 ```
 
 ### 2. Configurar GitHub Pages (opcional)
+
 - Settings → Pages → Source: Deploy from branch → main → /docs
 
 ### 3. Agregar Topics
+
 - Settings → Topics → Agregar: `game`, `zombie`, `multiplayer`, `nodejs`, `websocket`, `survival`
 
 ### 4. Deploy en Railway/Render
+
 ```bash
 # Railway
 railway login

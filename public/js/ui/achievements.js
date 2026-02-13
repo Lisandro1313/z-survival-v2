@@ -37,7 +37,7 @@ class AchievementSystem {
                 icon: '🗺️',
                 rarity: 'uncommon'
             },
-            
+
             // Combate
             'first_blood': {
                 id: 'first_blood',
@@ -60,7 +60,7 @@ class AchievementSystem {
                 icon: '👑',
                 rarity: 'epic'
             },
-            
+
             // Supervivencia
             'survivor': {
                 id: 'survivor',
@@ -76,7 +76,7 @@ class AchievementSystem {
                 icon: '💀',
                 rarity: 'rare'
             },
-            
+
             // Recursos
             'scavenger': {
                 id: 'scavenger',
@@ -92,7 +92,7 @@ class AchievementSystem {
                 icon: '💰',
                 rarity: 'rare'
             },
-            
+
             // Social
             'friendly': {
                 id: 'friendly',
@@ -138,7 +138,7 @@ class AchievementSystem {
         this.unlockedAchievements.add(achievementId);
         this.saveUnlockedAchievements();
         this.showAchievementPopup(achievement);
-        
+
         // Reproducir sonido
         if (window.playSound) {
             window.playSound('achievement');
@@ -149,7 +149,7 @@ class AchievementSystem {
 
     showAchievementPopup(achievement) {
         const container = document.getElementById('achievement-popup');
-        
+
         const popup = document.createElement('div');
         popup.className = `achievement-card rarity-${achievement.rarity}`;
         popup.innerHTML = `
@@ -180,22 +180,22 @@ class AchievementSystem {
 
     check(player) {
         const stats = player.stats || {};
-        
+
         // Exploración
         if (stats.locaciones_visitadas >= 1) this.unlock('first_move');
         if (stats.locaciones_visitadas >= 5) this.unlock('explorer');
-        
+
         // Combate
         if (stats.zombies_matados >= 1) this.unlock('first_blood');
         if (stats.zombies_matados >= 25) this.unlock('zombie_slayer');
         if (stats.zombies_matados >= 100) this.unlock('zombie_legend');
-        
+
         // Recursos
         if (stats.recursos_recolectados >= 100) this.unlock('scavenger');
-        
+
         // Supervivencia
         if (player.salud <= 10 && player.salud > 0) this.unlock('near_death');
-        
+
         // Inventario
         const inv = player.inventario || {};
         for (const [item, cantidad] of Object.entries(inv)) {

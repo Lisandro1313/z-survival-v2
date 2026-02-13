@@ -9,6 +9,7 @@
 **Ubicación**: `public/survival.html` (líneas ~10050-10350)
 
 **Características**:
+
 - 12 logros implementados en 6 categorías
 - Sistema de rareza (common, uncommon, rare, epic)
 - Persistencia en localStorage
@@ -19,27 +20,33 @@
 **Logros Disponibles**:
 
 #### Exploración
+
 - `first_move`: Primer Paso - Moverte por primera vez (común)
 - `explorer`: Explorador - Visitar 5 locaciones (poco común)
 
 #### Combate
+
 - `first_blood`: Primera Sangre - Matar primer zombie (poco común)
 - `zombie_slayer`: Cazador de Zombies - 25 zombies eliminados (raro)
 - `zombie_legend`: Leyenda de los No-Muertos - 100 zombies (épico)
 
 #### Supervivencia
+
 - `survivor`: Superviviente - Llegar a nivel 10 (raro)
 - `near_death`: Al Borde de la Muerte - Sobrevivir con <10 HP (poco común)
 
 #### Recursos
+
 - `scavenger`: Carroñero - Recolectar 100 recursos (poco común)
 - `hoarder`: Acumulador - 50+ recursos en inventario (raro)
 
 #### Social
+
 - `friendly`: Amistoso - 80 de relación con un NPC (poco común)
 - `trader`: Comerciante - 20 intercambios completados (raro)
 
 #### Crafteo
+
 - `first_craft`: Artesano Novato - Craftear primer objeto (común)
 
 ### 2. Sistema de Animaciones (AnimatedStatsRenderer)
@@ -47,6 +54,7 @@
 **Ubicación**: `public/survival.html` (líneas ~10350-10550)
 
 **Características**:
+
 - Detección automática de cambios en stats
 - Indicadores flotantes (+5, -10, etc.)
 - Efecto de sacudida (shake) en elementos
@@ -54,6 +62,7 @@
 - Animaciones con requestAnimationFrame
 
 **Stats Animadas**:
+
 - Salud (HP)
 - Hambre
 - Nivel
@@ -65,27 +74,28 @@
 **Funciones Añadidas**:
 
 ```javascript
-showDamageNumber(damage, isCritical, isHealing, position)
+showDamageNumber(damage, isCritical, isHealing, position);
 // Muestra números de daño flotantes en combate
 // - Posicionamiento: left (zombie), right (player), center
 // - Colores: rojo (daño), verde (curación), dorado (crítico)
 // - Tamaño: 32px normal, 48px crítico
 
-shakeScreen()
+shakeScreen();
 // Sacude la pantalla cuando el jugador recibe daño
 // Duración: 500ms
 
-showLevelUpBanner(level)
+showLevelUpBanner(level);
 // Banner animado cuando el jugador sube de nivel
 // Incluye explosión de 50 partículas doradas
 // Auto-dismiss en 3 segundos
 
-createParticle(x, y, color)
+createParticle(x, y, color);
 // Crea partículas individuales con física
 // Gravedad, velocidad y fade automáticos
 ```
 
 **Integración en Combate**:
+
 - `combat:turn_result`: Números flotantes para ataques del jugador (derecha) y zombie (izquierda)
 - Sacudida de pantalla cuando el jugador recibe daño
 - Efectos de crítico (tamaño aumentado, color dorado)
@@ -95,6 +105,7 @@ createParticle(x, y, color)
 **Ubicación**: `public/survival.html` - Pestaña "PROGRESIÓN"
 
 **Mejoras**:
+
 - Renderizado mejorado de logros con categorías
 - Muestra progreso (5/12 - 42%)
 - Logros bloqueados mostrados con 🔒 y descripción oculta (???)
@@ -107,6 +118,7 @@ createParticle(x, y, color)
 **Ubicación**: `public/style.css` (líneas ~1620-1990)
 
 **Nuevos Estilos**:
+
 ```css
 /* Achievement System */
 .achievement-popup          - Contenedor de logros (fixed, top-right)
@@ -151,21 +163,21 @@ El sistema se integra automáticamente con el flujo de mensajes del servidor:
 
 ```javascript
 const originalHandleMessage = handleMessage;
-window.handleMessage = handleMessage = function(msg) {
+window.handleMessage = handleMessage = function (msg) {
   const oldLevel = window.player ? window.player.nivel : 0;
-  
+
   originalHandleMessage(msg);
-  
+
   // Detectar level up
   if (window.player && window.player.nivel > oldLevel && oldLevel > 0) {
     showLevelUpBanner(window.player.nivel);
   }
-  
+
   // Chequear logros
   if (window.player && window.achievementSystem) {
     window.achievementSystem.check(window.player);
   }
-  
+
   // Animar stats
   if (window.player && window.statsRenderer) {
     window.statsRenderer.renderWithAnimations(window.player);
@@ -176,6 +188,7 @@ window.handleMessage = handleMessage = function(msg) {
 ### Tracking de Stats del Jugador
 
 El sistema espera estos campos en el objeto `player`:
+
 - `locaciones_visitadas`: Contador de locaciones únicas
 - `zombies_matados`: Total de zombies eliminados
 - `nivel`: Nivel actual del jugador
@@ -192,8 +205,8 @@ El sistema espera estos campos en el objeto `player`:
 
 ```javascript
 // En consola del navegador
-window.achievementSystem.unlock('first_move');
-window.achievementSystem.unlock('zombie_slayer');
+window.achievementSystem.unlock("first_move");
+window.achievementSystem.unlock("zombie_slayer");
 ```
 
 ### 2. Test de Progreso
@@ -229,6 +242,7 @@ console.log(window.achievementSystem.getProgress());
 ## Mejoras Futuras
 
 ### Corto Plazo (Fase 11)
+
 - [ ] Agregar más logros (Builder, Diplomat, Wealthy, Completionist)
 - [ ] Logros de tiempo (Speedrunner, Night Owl, Dawn Warrior)
 - [ ] Logros secretos ocultos
@@ -236,6 +250,7 @@ console.log(window.achievementSystem.getProgress());
 - [ ] Estadísticas detalladas por categoría
 
 ### Medio Plazo
+
 - [ ] Sistema de badges/títulos equipables
 - [ ] Recompensas por logros (XP bonus, items únicos)
 - [ ] Compartir logros (exportar captura)
@@ -243,6 +258,7 @@ console.log(window.achievementSystem.getProgress());
 - [ ] Sonidos únicos por rareza
 
 ### Largo Plazo
+
 - [ ] Logros multiplayer (cooperativos y competitivos)
 - [ ] Leaderboards de logros por servidor
 - [ ] Logros por temporada/eventos
@@ -252,6 +268,7 @@ console.log(window.achievementSystem.getProgress());
 ## Notas Técnicas
 
 ### Rendimiento
+
 - Los chequeos de logros se ejecutan en cada mensaje del servidor
 - Optimización futura: Solo chequear si stats relevantes cambiaron
 - Las animaciones usan `requestAnimationFrame` para suavidad 60fps
@@ -259,6 +276,7 @@ console.log(window.achievementSystem.getProgress());
 - Máximo 50 partículas simultáneas para level up
 
 ### Compatibilidad
+
 - Sistema 100% client-side (no requiere cambios en servidor para funcionar)
 - Compatible con localStorage (todos los navegadores modernos)
 - Fallback gracioso si localStorage falla (consola warning)
@@ -266,6 +284,7 @@ console.log(window.achievementSystem.getProgress());
 - Funciona en Chrome, Firefox, Edge, Safari
 
 ### Debugging
+
 - `window.achievementSystem` expuesto para testing manual
 - `window.statsRenderer` expuesto para testing manual
 - `showDamageNumber()`, `shakeScreen()`, `showLevelUpBanner()` globales
@@ -332,6 +351,7 @@ console.log(window.achievementSystem.getProgress());
 ## Experiencia de Usuario
 
 **Antes**:
+
 - Cambios de stats silenciosos (solo números actualizados)
 - Sin feedback visual de logros o progreso
 - Combate estático (solo texto en log)
@@ -339,6 +359,7 @@ console.log(window.achievementSystem.getProgress());
 - Progreso difícil de rastrear
 
 **Después**:
+
 - 🎊 Popups animados al desbloquear logros
 - 💥 Números flotantes muestran cambios de stats
 - ⚔️ Números de daño en combate (player vs zombie)
