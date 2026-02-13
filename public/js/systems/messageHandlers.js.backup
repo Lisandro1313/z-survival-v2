@@ -1,0 +1,939 @@
+/**
+ * Handlers de mensajes WebSocket
+ * Migrado desde survival.html original
+ */
+
+import { playSound } from '../utils/sounds.js';
+import { log, worldLog } from '../utils/helpers.js';
+import { renderGame } from '../ui/renderer.js';
+
+// Función auxiliar para obtener gameState
+function getGameState() {
+    return window.gameState || { player: null, world: null };
+}
+
+function getPlayer() {
+    return getGameState().player;
+}
+
+function getWorld() {
+    return getGameState().world;
+}
+
+function setPlayer(p) {
+    if (window.gameState) window.gameState.player = p;
+}
+
+function setWorld(w) {
+    if (window.gameState) window.gameState.world = w;
+}
+
+/**
+ * Muestra notificación temporal
+ */
+function showNotification(message, type = 'success') {
+    const notif = document.createElement('div');
+    notif.className = `notification ${type}`;
+    notif.textContent = message;
+    notif.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: ${type === 'success' ? '#00ff00' : type === 'warning' ? '#ffaa00' : '#ff0000'};
+        color: #000;
+        padding: 15px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+    `;
+    document.body.appendChild(notif);
+
+    setTimeout(() => {
+        notif.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => notif.remove(), 300);
+    }, 3000);
+}
+
+/**
+ * Refresca la lista de quests desde el servidor
+ */
+function refreshQuests() {
+    if (window.getWebSocket && window.getWebSocket()) {
+        window.getWebSocket().send(JSON.stringify({ type: 'getQuests' }));
+    }
+}
+
+/**
+ * Muestra badge en un tab
+ */
+function showBadge(tabName) {
+    const btn = document.getElementById(`tab-btn-${tabName}`);
+    if (btn && !btn.querySelector('.badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = '!';
+        badge.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff0000;
+            color: #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        `;
+        btn.style.position = 'relative';
+        btn.appendChild(badge);
+    }
+}
+
+/**
+ * TODOS los handlers de mensajes del servidor
+ */
+export const messageHandlers = {
+    'player:data': (msg) => {
+        if (msg.player) {
+            setPlayer(msg.player);
+            console.log('✅ Datos del jugador actualizados:', getPlayer().nombre);
+            renderGame();
+        }
+    },
+
+    'world:state': (msg) => {
+        setWorld(msg.world);
+        console.log('📦 Mundo recibido:', msg.world);
+        const player = getPlayer();
+        const world = getWorld();
+        if (world.players && world.players[player?.id]) {
+            setPlayer(world.players[player.id]);
+        }
+        renderGame();
+    },
+
+    'moved': (msg) => {
+        log(`Te moviste a: ${msg.location.nombre}`, 'success');
+        const player = getPlayer();
+        if (player) player.locacion = msg.location.id;
+        playSound('move');
+        renderGame();
+    },
+
+    'scavenge:result': (msg) => {
+        const items = Object.entries(msg.found).map(([k, v]) => `${k}:${v}`).join(', ');
+        log(`Encontraste: ${items || 'nada'}`, 'success');
+        const player = getPlayer();
+        if (msg.inventario && player) player.inventario = msg.inventario;
+        if (items) playSound('loot');
+        renderGame();
+    },
+
+    'combat': (msg) => {
+        log(msg.message, 'combat');
+        const player = getPlayer();
+        if (player) player.salud = msg.salud;
+        renderGame();
+    },
+
+    'combat:started': (msg) => {
+        const player = getPlayer();
+        if (player) {
+            player.inCombat = {
+                zombieHP: msg.zombie.hp,
+                zombieMaxHP: msg.zombie.maxHP,
+                turno: msg.turno
+            };
+        }
+        log(msg.message, 'combat');
+        playSound('combat');
+        renderGame();
+    },
+
+    'combat:turn_result': (msg) => {
+        const r = msg.resultado;
+
+        let combatLog = `⚔️ Atacaste: ${r.playerAttack.damage} daño`;
+        if (r.playerAttack.critical) combatLog += ' ¡CRÍTICO!';
+        log(combatLog, 'combat');
+
+        if (r.zombieAttack.dodged) {
+            log(`✨ ¡Esquivaste el ataque del zombie!`, 'success');
+        } else if (r.zombieAttack.damage > 0) {
+            log(`🧟 Zombie te atacó: ${r.zombieAttack.damage} daño`, 'warning');
+            playSound('recibo_dano');
+        }
+
+        const player = getPlayer();
+        if (player) {
+            player.inCombat = {
+                zombieHP: msg.zombie.hp,
+                zombieMaxHP: msg.zombie.maxHP,
+                turno: msg.turno
+            };
+            player.salud = msg.player.hp;
+            player.saludMaxima = msg.player.maxHP;
+        }
+
+        log(msg.message, 'combat');
+        renderGame();
+    },
+
+    'combat:result': (msg) => {
+        const r = msg.resultado;
+        const player = getPlayer();
+        const world = getWorld();
+
+        if (r.combatEnded) {
+            if (r.playerWon) {
+                log(`🎉 ¡Victoria! ${msg.message}`, 'success');
+
+                const lootItems = Object.entries(r.loot || {});
+                if (lootItems.length > 0) {
+                    log(`📦 Loot: ${lootItems.map(([k, v]) => `${k} x${v}`).join(', ')}`, 'success');
+                }
+
+                if (player) player.inventario = msg.player.inventario;
+                playSound('achievement');
+            } else {
+                log(msg.message, 'warning');
+                playSound('death');
+            }
+
+            if (player) delete player.inCombat;
+        }
+
+        if (player) {
+            player.salud = msg.player.hp;
+            if (msg.player.maxHP) player.saludMaxima = msg.player.maxHP;
+        }
+        if (msg.zombiesRemaining !== undefined && world.locations && world.locations[player?.locacion]) {
+            world.locations[player.locacion].zombies = msg.zombiesRemaining;
+        }
+
+        renderGame();
+    },
+
+    'combat:fled': (msg) => {
+        if (msg.success) {
+            log(msg.message, 'success');
+        } else {
+            log(msg.message, 'warning');
+            const player = getPlayer();
+            if (msg.damage && player) {
+                player.salud = msg.player.hp;
+                playSound('recibo_dano');
+            }
+        }
+        const player = getPlayer();
+        if (player) delete player.inCombat;
+        renderGame();
+    },
+
+    'player:respawn': (msg) => {
+        log(msg.message || 'Reapareciste en el refugio', 'warning');
+        const player = getPlayer();
+        if (player) {
+            player.salud = msg.player.salud;
+            player.locacion = msg.player.locacion;
+            delete player.inCombat;
+        }
+        playSound('warning');
+        renderGame();
+    },
+
+    'craft:success': (msg) => {
+        log(`🔨 Crafteaste: ${msg.item}`, 'success');
+        const world = getWorld();
+        if (msg.defensas && world.locations?.refugio) {
+            world.locations.refugio.defensas = msg.defensas;
+        }
+        const player = getPlayer();
+        if (msg.inventario && player) player.inventario = msg.inventario;
+        playSound('craft');
+        renderGame();
+    },
+
+    'craft:error': (msg) => {
+        log(`❌ ${msg.error}`, 'warning');
+        playSound('error');
+    },
+
+    'level:up': (msg) => {
+        const player = getPlayer();
+        if (player) {
+            player.nivel = msg.nivel;
+            player.xpParaSiguienteNivel = msg.xpMax;
+            player.xp = 0;
+        }
+        playSound('levelup');
+        showNotification(`🎉 ¡NIVEL ${msg.nivel}!`, 'success');
+        renderGame();
+    },
+
+    'xp:gained': (msg) => {
+        log(`+${msg.amount} XP (${msg.xp}/${msg.xpMax})`, 'success');
+        const player = getPlayer();
+        if (player) {
+            player.xp = msg.xp;
+            player.xpParaSiguienteNivel = msg.xpMax;
+        }
+        renderGame();
+    },
+
+    'world:event': (msg) => {
+        worldLog(msg.message, msg.category);
+        const eventsTab = document.getElementById('tab-events');
+        if (eventsTab && !eventsTab.classList.contains('active')) {
+            showBadge('events');
+        }
+    },
+
+    'location:update': (msg) => {
+        const world = getWorld();
+        if (world && world.locations && msg.location) {
+            const loc = world.locations[msg.location.id];
+            if (loc) {
+                loc.zombies = msg.location.zombies;
+                if (msg.location.zombiesMax) loc.zombiesInitial = msg.location.zombiesMax;
+                if (msg.location.nivelRuido !== undefined) loc.nivelRuido = msg.location.nivelRuido;
+                renderGame();
+            }
+        }
+    },
+
+    'player:joined': (msg) => {
+        worldLog(`👤 ${msg.nombre} se unió`, 'success');
+        renderGame();
+    },
+
+    'player:left': (msg) => {
+        worldLog(`👤 ${msg.nombre} se desconectó`, 'warning');
+    },
+
+    'players:list': (msg) => {
+        console.log('🎮 Lista de jugadores recibida:', msg.players?.length || 0);
+
+        if (!window.connections) window.connections = new Map();
+        window.connections.clear();
+        if (msg.players && Array.isArray(msg.players)) {
+            msg.players.forEach(p => {
+                window.connections.set(p.id, p);
+            });
+        }
+
+        renderGame();
+    },
+
+    'chat:message': (msg) => {
+        const chatLog = document.getElementById('chatLog');
+        if (chatLog) {
+            const msgEl = document.createElement('div');
+            msgEl.style.cssText = 'margin: 5px 0; color: #00ff00;';
+            msgEl.innerHTML = `<strong>${msg.from}</strong>: ${msg.message}`;
+            chatLog.appendChild(msgEl);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        const player = getPlayer();
+        if (msg.playerId !== player?.id) {
+            const socialTab = document.getElementById('tab-social');
+            if (socialTab && !socialTab.classList.contains('active')) {
+                showBadge('social');
+            }
+        }
+    },
+
+    'achievement:unlocked': (msg) => {
+        showNotification(`🏆 ${msg.achievement.name}`, 'success');
+        const player = getPlayer();
+        if (player) {
+            if (!player.achievements) player.achievements = {};
+            player.achievements[msg.achievement.id] = { desbloqueado: true, fecha: Date.now() };
+        }
+        playSound('achievement');
+        renderGame();
+    },
+
+    'mission:completed': (msg) => {
+        showNotification(`✅ Misión: ${msg.mission?.descripcion}`, 'success');
+        const player = getPlayer();
+        const world = getWorld();
+        if (msg.inventario && player) player.inventario = msg.inventario;
+        if (world.activeMissions) {
+            const mission = world.activeMissions.find(m => m.id === msg.mission?.id);
+            if (mission && !mission.completedBy.includes(player?.id)) {
+                mission.completedBy.push(player.id);
+            }
+        }
+        playSound('achievement');
+        renderGame();
+    },
+
+    'npc:talk': (msg) => {
+        log(`${msg.npcName}: "${msg.dialogo}"`, 'info');
+        if (msg.playSound) {
+            playSound(msg.playSound);
+        }
+        const player = getPlayer();
+        const world = getWorld();
+        if (msg.inventario && player) {
+            player.inventario = msg.inventario;
+        }
+        if (msg.npcState && world) {
+            if (!world.npcs) world.npcs = {};
+            world.npcs[msg.npcId] = msg.npcState;
+        }
+
+        // Mostrar opciones de diálogo si existen
+        if (msg.opciones && msg.opciones.length > 0) {
+            const dialogueContainer = document.getElementById('npcDialogueOptions');
+            if (dialogueContainer) {
+                let html = `<div style="background: #1a1a1a; padding: 10px; margin: 10px 0; border: 2px solid #00ff00;">`;
+                html += `<strong>${msg.npcName}:</strong> "${msg.dialogo}"<br><br>`;
+                html += `<div style="margin-top: 10px;">`;
+                msg.opciones.forEach((opcion, idx) => {
+                    html += `<button onclick="window.selectDialogueOption('${msg.npcId}', ${idx})" style="display: block; width: 100%; margin: 5px 0; padding: 8px; text-align: left;">
+                        ${opcion.texto}
+                    </button>`;
+                });
+                html += `</div></div>`;
+                dialogueContainer.innerHTML = html;
+            }
+        }
+
+        renderGame();
+    },
+
+    'npc:mission_accepted': (msg) => {
+        const player = getPlayer();
+        if (player) player.activeMission = msg.mission;
+        log(`📜 Misión aceptada: ${msg.mission.descripcion}`, 'success');
+        showNotification(msg.message, 'success');
+        playSound('achievement');
+        renderGame();
+    },
+
+    'npc:mission_completed': (msg) => {
+        const player = getPlayer();
+        if (player) delete player.activeMission;
+        log(`✅ ${msg.message}`, 'success');
+
+        const rewards = [];
+        if (msg.recompensas.xp) rewards.push(`+${msg.recompensas.xp} XP`);
+        if (msg.recompensas.reputacion) rewards.push(`+${msg.recompensas.reputacion} Reputación`);
+        Object.keys(msg.recompensas).forEach(key => {
+            if (key !== 'xp' && key !== 'reputacion') {
+                rewards.push(`+${msg.recompensas[key]} ${key}`);
+            }
+        });
+
+        showNotification(`🎁 Recompensas: ${rewards.join(', ')}`, 'success');
+        playSound('levelup');
+        renderGame();
+    },
+
+    'npc:resource_given': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        showNotification(msg.message, 'success');
+        playSound('loot');
+        renderGame();
+    },
+
+    'quests': (msg) => {
+        const normalizeQuest = (q) => ({
+            id: q.id,
+            title: q.title || q.titulo,
+            description: q.description || q.descripcion,
+            type: q.type || q.tipo,
+            objectives: q.objectives || q.objetivos || [],
+            rewards: q.rewards || q.recompensas || {},
+            estado: q.estado || q.status,
+            expiresAt: q.expiresAt || q.expira_en || (Date.now() + 600000),
+            npcsInvolved: q.npcsInvolved || q.npcs || [],
+            isDynamic: q.isDynamic || false
+        });
+
+        const allQuests = [
+            ...(msg.disponibles || []).map(normalizeQuest),
+            ...(msg.activas || []).map(normalizeQuest)
+        ];
+
+        console.log('📋 Misiones recibidas:', allQuests.length);
+
+        // Renderizar en la pestaña de misiones
+        const missionsPanel = document.getElementById('missionsPanel');
+        if (missionsPanel && allQuests.length > 0) {
+            let html = '';
+            allQuests.forEach(q => {
+                html += `
+                    <div style="background: #1a2a1a; padding: 10px; margin: 5px 0; border-left: 3px solid #00ff00;">
+                        <strong>${q.title}</strong>
+                        <div style="font-size: 11px; color: #ccc; margin: 5px 0;">${q.description}</div>
+                        ${q.estado === 'disponible' ?
+                        `<button onclick="window.acceptQuest('${q.id}')" style="padding: 5px 10px; margin-top: 5px;">✅ Aceptar</button>` :
+                        `<span style="color: #ffaa00;">En progreso...</span>`
+                    }
+                    </div>
+                `;
+            });
+            missionsPanel.innerHTML = html;
+        } else if (missionsPanel) {
+            missionsPanel.innerHTML = '<em style="color: #888;">Sin misiones disponibles</em>';
+        }
+    },
+
+    'quest_aceptada': (msg) => {
+        log(`✅ ${msg.mensaje}`, 'success');
+        playSound('achievement');
+        showNotification(msg.mensaje, 'success');
+        refreshQuests();
+    },
+
+    'world:update': (msg) => {
+        log(msg.message, 'info');
+        worldLog(msg.message);
+    },
+
+    'pong': (msg) => {
+        // Mantener conexión activa
+    },
+
+    'error': (msg) => {
+        log(`⚠️ ERROR: ${msg.error || msg.mensaje}`, 'warning');
+        playSound('error');
+    }
+};
+
+export function setGameState(p, w) {
+    // No necesario, usamos referencias directas a gameState
+}
+
+export { getPlayer, getWorld };
+
+/**
+ * Refresca la lista de quests desde el servidor
+ */
+function refreshQuests() {
+    // Esto se debe implementar donde se use
+    console.log('refreshQuests llamado');
+}
+
+/**
+ * Muestra badge en un tab
+ */
+function showBadge(tabName) {
+    const btn = document.getElementById(`tab-btn-${tabName}`);
+    if (btn && !btn.querySelector('.badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.textContent = '!';
+        badge.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff0000;
+            color: #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+        `;
+        btn.style.position = 'relative';
+        btn.appendChild(badge);
+    }
+}
+
+/**
+ * TODOS los handlers de mensajes del servidor
+ */
+export const messageHandlers = {
+    'player:data': (msg) => {
+        if (msg.player) {
+            player = msg.player;
+            console.log('✅ Datos del jugador actualizados:', player.nombre);
+            renderGame();
+        }
+    },
+
+    'world:state': (msg) => {
+        world = msg.world;
+        console.log('📦 Mundo recibido:', world);
+        if (world.players && world.players[player.id]) {
+            player = world.players[player.id];
+        }
+        renderGame();
+    },
+
+    'moved': (msg) => {
+        log(`Te moviste a: ${msg.location.nombre}`, 'success');
+        player.locacion = msg.location.id;
+        playSound('move');
+        renderGame();
+    },
+
+    'scavenge:result': (msg) => {
+        const items = Object.entries(msg.found).map(([k, v]) => `${k}:${v}`).join(', ');
+        log(`Encontraste: ${items || 'nada'}`, 'success');
+        if (msg.inventario) player.inventario = msg.inventario;
+        if (items) playSound('loot');
+        renderGame();
+    },
+
+    'combat': (msg) => {
+        log(msg.message, 'combat');
+        player.salud = msg.salud;
+        renderGame();
+    },
+
+    'combat:started': (msg) => {
+        player.inCombat = {
+            zombieHP: msg.zombie.hp,
+            zombieMaxHP: msg.zombie.maxHP,
+            turno: msg.turno
+        };
+        log(msg.message, 'combat');
+        playSound('combat');
+        renderGame();
+    },
+
+    'combat:turn_result': (msg) => {
+        const r = msg.resultado;
+
+        let combatLog = `⚔️ Atacaste: ${r.playerAttack.damage} daño`;
+        if (r.playerAttack.critical) combatLog += ' ¡CRÍTICO!';
+        log(combatLog, 'combat');
+
+        if (r.zombieAttack.dodged) {
+            log(`✨ ¡Esquivaste el ataque del zombie!`, 'success');
+        } else if (r.zombieAttack.damage > 0) {
+            log(`🧟 Zombie te atacó: ${r.zombieAttack.damage} daño`, 'warning');
+            playSound('recibo_dano');
+        }
+
+        player.inCombat = {
+            zombieHP: msg.zombie.hp,
+            zombieMaxHP: msg.zombie.maxHP,
+            turno: msg.turno
+        };
+        player.salud = msg.player.hp;
+        player.saludMaxima = msg.player.maxHP;
+
+        log(msg.message, 'combat');
+        renderGame();
+    },
+
+    'combat:result': (msg) => {
+        const r = msg.resultado;
+
+        if (r.combatEnded) {
+            if (r.playerWon) {
+                log(`🎉 ¡Victoria! ${msg.message}`, 'success');
+
+                const lootItems = Object.entries(r.loot || {});
+                if (lootItems.length > 0) {
+                    log(`📦 Loot: ${lootItems.map(([k, v]) => `${k} x${v}`).join(', ')}`, 'success');
+                }
+
+                player.inventario = msg.player.inventario;
+                playSound('achievement');
+            } else {
+                log(msg.message, 'warning');
+                playSound('death');
+            }
+
+            delete player.inCombat;
+        }
+
+        player.salud = msg.player.hp;
+        if (msg.player.maxHP) player.saludMaxima = msg.player.maxHP;
+        if (msg.zombiesRemaining !== undefined && world.locations[player.locacion]) {
+            world.locations[player.locacion].zombies = msg.zombiesRemaining;
+        }
+
+        renderGame();
+    },
+
+    'combat:fled': (msg) => {
+        if (msg.success) {
+            log(msg.message, 'success');
+        } else {
+            log(msg.message, 'warning');
+            if (msg.damage) {
+                player.salud = msg.player.hp;
+                playSound('recibo_dano');
+            }
+        }
+        delete player.inCombat;
+        renderGame();
+    },
+
+    'player:respawn': (msg) => {
+        log(msg.message || 'Reapareciste en el refugio', 'warning');
+        player.salud = msg.player.salud;
+        player.locacion = msg.player.locacion;
+        delete player.inCombat;
+        playSound('warning');
+        renderGame();
+    },
+
+    'craft:success': (msg) => {
+        log(`🔨 Crafteaste: ${msg.item}`, 'success');
+        if (msg.defensas && world.locations?.refugio) {
+            world.locations.refugio.defensas = msg.defensas;
+        }
+        if (msg.inventario) player.inventario = msg.inventario;
+        playSound('craft');
+        renderGame();
+    },
+
+    'craft:error': (msg) => {
+        log(`❌ ${msg.error}`, 'warning');
+        playSound('error');
+    },
+
+    'level:up': (msg) => {
+        player.nivel = msg.nivel;
+        player.xpParaSiguienteNivel = msg.xpMax;
+        player.xp = 0;
+        playSound('levelup');
+        showNotification(`🎉 ¡NIVEL ${msg.nivel}!`, 'success');
+        renderGame();
+    },
+
+    'xp:gained': (msg) => {
+        log(`+${msg.amount} XP (${msg.xp}/${msg.xpMax})`, 'success');
+        player.xp = msg.xp;
+        player.xpParaSiguienteNivel = msg.xpMax;
+        renderGame();
+    },
+
+    'world:event': (msg) => {
+        worldLog(msg.message, msg.category);
+        const eventsTab = document.getElementById('tab-events');
+        if (eventsTab && !eventsTab.classList.contains('active')) {
+            showBadge('events');
+        }
+    },
+
+    'location:update': (msg) => {
+        if (world && world.locations && msg.location) {
+            const loc = world.locations[msg.location.id];
+            if (loc) {
+                loc.zombies = msg.location.zombies;
+                if (msg.location.zombiesMax) loc.zombiesInitial = msg.location.zombiesMax;
+                if (msg.location.nivelRuido !== undefined) loc.nivelRuido = msg.location.nivelRuido;
+                renderGame();
+            }
+        }
+    },
+
+    'player:joined': (msg) => {
+        worldLog(`👤 ${msg.nombre} se unió`, 'success');
+        renderGame();
+    },
+
+    'player:left': (msg) => {
+        worldLog(`👤 ${msg.nombre} se desconectó`, 'warning');
+    },
+
+    'players:list': (msg) => {
+        console.log('🎮 Lista de jugadores recibida:', msg.players?.length || 0);
+
+        if (!window.connections) window.connections = new Map();
+        window.connections.clear();
+        if (msg.players && Array.isArray(msg.players)) {
+            msg.players.forEach(p => {
+                window.connections.set(p.id, p);
+            });
+        }
+
+        renderGame();
+    },
+
+    'chat:message': (msg) => {
+        const chatLog = document.getElementById('chatLog');
+        if (chatLog) {
+            const msgEl = document.createElement('div');
+            msgEl.style.cssText = 'margin: 5px 0; color: #00ff00;';
+            msgEl.innerHTML = `<strong>${msg.from}</strong>: ${msg.message}`;
+            chatLog.appendChild(msgEl);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+
+        if (msg.playerId !== player.id) {
+            const socialTab = document.getElementById('tab-social');
+            if (socialTab && !socialTab.classList.contains('active')) {
+                showBadge('social');
+            }
+        }
+    },
+
+    'achievement:unlocked': (msg) => {
+        showNotification(`🏆 ${msg.achievement.name}`, 'success');
+        if (!player.achievements) player.achievements = {};
+        player.achievements[msg.achievement.id] = { desbloqueado: true, fecha: Date.now() };
+        playSound('achievement');
+        renderGame();
+    },
+
+    'mission:completed': (msg) => {
+        showNotification(`✅ Misión: ${msg.mission?.descripcion}`, 'success');
+        if (msg.inventario) player.inventario = msg.inventario;
+        if (world.activeMissions) {
+            const mission = world.activeMissions.find(m => m.id === msg.mission?.id);
+            if (mission && !mission.completedBy.includes(player.id)) {
+                mission.completedBy.push(player.id);
+            }
+        }
+        playSound('achievement');
+        renderGame();
+    },
+
+    'npc:talk': (msg) => {
+        log(`${msg.npcName}: "${msg.dialogo}"`, 'info');
+        if (msg.playSound) {
+            playSound(msg.playSound);
+        }
+        if (msg.inventario) {
+            player.inventario = msg.inventario;
+        }
+        if (msg.npcState) {
+            if (!world.npcs) world.npcs = {};
+            world.npcs[msg.npcId] = msg.npcState;
+        }
+
+        // Mostrar opciones de diálogo si existen
+        if (msg.opciones && msg.opciones.length > 0) {
+            const dialogueContainer = document.getElementById('npcDialogueOptions');
+            if (dialogueContainer) {
+                let html = `<div style="background: #1a1a1a; padding: 10px; margin: 10px 0; border: 2px solid #00ff00;">`;
+                html += `<strong>${msg.npcName}:</strong> "${msg.dialogo}"<br><br>`;
+                html += `<div style="margin-top: 10px;">`;
+                msg.opciones.forEach((opcion, idx) => {
+                    html += `<button onclick="window.selectDialogueOption('${msg.npcId}', ${idx})" style="display: block; width: 100%; margin: 5px 0; padding: 8px; text-align: left;">
+                        ${opcion.texto}
+                    </button>`;
+                });
+                html += `</div></div>`;
+                dialogueContainer.innerHTML = html;
+            }
+        }
+
+        renderGame();
+    },
+
+    'npc:mission_accepted': (msg) => {
+        player.activeMission = msg.mission;
+        log(`📜 Misión aceptada: ${msg.mission.descripcion}`, 'success');
+        showNotification(msg.message, 'success');
+        playSound('achievement');
+        renderGame();
+    },
+
+    'npc:mission_completed': (msg) => {
+        delete player.activeMission;
+        log(`✅ ${msg.message}`, 'success');
+
+        const rewards = [];
+        if (msg.recompensas.xp) rewards.push(`+${msg.recompensas.xp} XP`);
+        if (msg.recompensas.reputacion) rewards.push(`+${msg.recompensas.reputacion} Reputación`);
+        Object.keys(msg.recompensas).forEach(key => {
+            if (key !== 'xp' && key !== 'reputacion') {
+                rewards.push(`+${msg.recompensas[key]} ${key}`);
+            }
+        });
+
+        showNotification(`🎁 Recompensas: ${rewards.join(', ')}`, 'success');
+        playSound('levelup');
+        renderGame();
+    },
+
+    'npc:resource_given': (msg) => {
+        log(`✅ ${msg.message}`, 'success');
+        showNotification(msg.message, 'success');
+        playSound('loot');
+        renderGame();
+    },
+
+    'quests': (msg) => {
+        const normalizeQuest = (q) => ({
+            id: q.id,
+            title: q.title || q.titulo,
+            description: q.description || q.descripcion,
+            type: q.type || q.tipo,
+            objectives: q.objectives || q.objetivos || [],
+            rewards: q.rewards || q.recompensas || {},
+            estado: q.estado || q.status,
+            expiresAt: q.expiresAt || q.expira_en || (Date.now() + 600000),
+            npcsInvolved: q.npcsInvolved || q.npcs || [],
+            isDynamic: q.isDynamic || false
+        });
+
+        const allQuests = [
+            ...(msg.disponibles || []).map(normalizeQuest),
+            ...(msg.activas || []).map(normalizeQuest)
+        ];
+
+        console.log('📋 Misiones recibidas:', allQuests.length);
+
+        // Renderizar en la pestaña de misiones
+        const missionsPanel = document.getElementById('missionsPanel');
+        if (missionsPanel && allQuests.length > 0) {
+            let html = '';
+            allQuests.forEach(q => {
+                html += `
+                    <div style="background: #1a2a1a; padding: 10px; margin: 5px 0; border-left: 3px solid #00ff00;">
+                        <strong>${q.title}</strong>
+                        <div style="font-size: 11px; color: #ccc; margin: 5px 0;">${q.description}</div>
+                        ${q.estado === 'disponible' ?
+                        `<button onclick="window.acceptQuest('${q.id}')" style="padding: 5px 10px; margin-top: 5px;">✅ Aceptar</button>` :
+                        `<span style="color: #ffaa00;">En progreso...</span>`
+                    }
+                    </div>
+                `;
+            });
+            missionsPanel.innerHTML = html;
+        } else if (missionsPanel) {
+            missionsPanel.innerHTML = '<em style="color: #888;">Sin misiones disponibles</em>';
+        }
+    },
+
+    'quest_aceptada': (msg) => {
+        log(`✅ ${msg.mensaje}`, 'success');
+        playSound('achievement');
+        showNotification(msg.mensaje, 'success');
+        refreshQuests();
+    },
+
+    'world:update': (msg) => {
+        log(msg.message, 'info');
+        worldLog(msg.message);
+    },
+
+    'pong': (msg) => {
+        // Mantener conexión activa
+    },
+
+    'error': (msg) => {
+        log(`⚠️ ERROR: ${msg.error || msg.mensaje}`, 'warning');
+        playSound('error');
+    }
+};
+
+// Exportar funciones necesarias para eventos globales
+export function updatePlayerState(newPlayer) {
+    player = newPlayer;
+}
+
+export function updateWorldState(newWorld) {
+    world = newWorld;
+}

@@ -475,7 +475,21 @@
       
       <!-- Paso 3: Apariencia -->
       <div id="paso3" class="hidden">
-        <h3 style="color: #ffff00; margin: 20px 0;">Elige tu avatar:</h3>
+        <h3 style="color: #ffff00; margin: 20px 0;">📸 Toma una foto para tu perfil:</h3>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <video id="cameraPreview" autoplay playsinline style="width: 300px; height: 225px; border: 2px solid #00ff00; border-radius: 8px; display: none; background: #000;"></video>
+          <canvas id="photoCanvas" style="display: none;"></canvas>
+          <img id="capturedPhoto" style="width: 300px; height: 225px; border: 2px solid #00ff00; border-radius: 8px; display: none; object-fit: cover;">
+          
+          <div style="margin-top: 15px;">
+            <button id="btnStartCamera" onclick="startCamera()" style="width: auto; padding: 10px 20px; margin: 5px;">📷 Iniciar Cámara</button>
+            <button id="btnTakePhoto" onclick="takePhoto()" style="width: auto; padding: 10px 20px; margin: 5px; display: none;">📸 Capturar Foto</button>
+            <button id="btnRetakePhoto" onclick="retakePhoto()" style="width: auto; padding: 10px 20px; margin: 5px; display: none;">🔄 Tomar Otra</button>
+          </div>
+        </div>
+        
+        <h3 style="color: #ffff00; margin: 20px 0;">O elige un avatar:</h3>
         <div class="avatar-grid">
           <div class="avatar-option" onclick="seleccionarAvatar('👤')">👤</div>
           <div class="avatar-option" onclick="seleccionarAvatar('👨')">👨</div>
@@ -516,6 +530,8 @@
     let selectedColor = '#00ff00';
     let atributos = { fuerza: 5, resistencia: 5, agilidad: 5, inteligencia: 5 };
     let puntosDisponibles = 10;
+    let cameraStream = null;
+    let capturedPhotoData = null;
 
     async function login() {
       const username = document.getElementById('username').value.trim();
@@ -690,6 +706,53 @@
       event.currentTarget.classList.add('selected');
     }
 
+    async function startCamera() {
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        const video = document.getElementById('cameraPreview');
+        video.srcObject = cameraStream;
+        video.style.display = 'block';
+        document.getElementById('btnStartCamera').style.display = 'none';
+        document.getElementById('btnTakePhoto').style.display = 'inline-block';
+        document.getElementById('capturedPhoto').style.display = 'none';
+      } catch (err) {
+        alert('No se pudo acceder a la cámara: ' + err.message);
+      }
+    }
+    
+    function takePhoto() {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('photoCanvas');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      capturedPhotoData = canvas.toDataURL('image/jpeg', 0.8);
+      
+      const img = document.getElementById('capturedPhoto');
+      img.src = capturedPhotoData;
+      img.style.display = 'block';
+      
+      video.style.display = 'none';
+      document.getElementById('btnTakePhoto').style.display = 'none';
+      document.getElementById('btnRetakePhoto').style.display = 'inline-block';
+      
+      // Detener cámara
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+    }
+    
+    function retakePhoto() {
+      capturedPhotoData = null;
+      document.getElementById('capturedPhoto').style.display = 'none';
+      document.getElementById('btnRetakePhoto').style.display = 'none';
+      document.getElementById('btnStartCamera').style.display = 'inline-block';
+    }
+    
     async function crearPersonaje() {
       const nombre = document.getElementById('nombrePersonaje').value.trim();
       
@@ -698,40 +761,70 @@
         return;
       }
       
-      const response = await fetch('/api/personaje/crear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          usuarioId: currentUser.id,
-          nombre,
-          clase: selectedClase,
-          atributos,
-          avatar: selectedAvatar,
-          color: selectedColor
-        })
-      });
+      // Detener cámara si está activa
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
       
-      const data = await response.json();
-      
-      if (data.success) {
-        seleccionarPersonaje(data.personaje.id);
-      } else {
-        showError('errorCrear', data.error);
+      try {
+        console.log('Creando personaje:', nombre, selectedClase);
+        
+        const response = await fetch('/api/personaje/crear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuarioId: currentUser.id,
+            nombre,
+            clase: selectedClase,
+            fuerza: atributos.fuerza,
+            resistencia: atributos.resistencia,
+            agilidad: atributos.agilidad,
+            inteligencia: atributos.inteligencia,
+            avatar: capturedPhotoData || selectedAvatar,
+            color: selectedColor
+          })
+        });
+        
+        const data = await response.json();
+        console.log('Respuesta crear personaje:', data);
+        
+        if (data.success) {
+          console.log('Personaje creado exitosamente, cargando...');
+          await seleccionarPersonaje(data.personaje.id);
+        } else {
+          console.error('Error al crear personaje:', data.error);
+          showError('errorCrear', data.error || 'Error al crear personaje');
+        }
+      } catch (error) {
+        console.error('Error en crearPersonaje:', error);
+        showError('errorCrear', 'Error de conexión. Verifica que el servidor esté activo.');
       }
     }
 
     async function seleccionarPersonaje(personajeId) {
-      const response = await fetch('/api/personaje/load', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personajeId })
-      });
+      console.log('Seleccionando personaje ID:', personajeId);
       
-      const data = await response.json();
-      
-      if (data.success) {
-        localStorage.setItem('playerId', data.player.id);
-        window.location.href = '/survival.html';
+      try {
+        const response = await fetch('/api/personaje/load', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personajeId })
+        });
+        
+        const data = await response.json();
+        console.log('Respuesta cargar personaje:', data);
+        
+        if (data.success) {
+          localStorage.setItem('playerId', data.player.id);
+          console.log('Redirigiendo a survival.html...');
+          window.location.href = '/survival.html';
+        } else {
+          console.error('Error al cargar personaje:', data.error);
+          alert('Error al cargar personaje: ' + (data.error || 'Error desconocido'));
+        }
+      } catch (error) {
+        console.error('Error en seleccionarPersonaje:', error);
+        alert('Error de conexión al cargar personaje. Refresca la página e intenta de nuevo.');
       }
     }
 

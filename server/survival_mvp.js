@@ -1,6 +1,7 @@
 /**
  * MVP SURVIVAL ZOMBIE - Servidor Principal
  * Versión con persistencia y creación de personajes
+ * ARQUITECTURA: Migración progresiva a sistemas limpios
  */
 
 import express from 'express';
@@ -8,6 +9,22 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import survivalDB from './db/survivalDB.js';
 import { initialize as initializeMainDB } from './db/index.js';
+import { initializeNewEngine, tickNewArchitecture } from './src/integrationBridge.js';
+import {
+    ResourceService,
+    CombatService,
+    CraftingService,
+    TradeService,
+    DialogueService,
+    MovementService,
+    InventoryService
+} from './services/GameServices.js';
+import {
+    requirePlayer,
+    requireNotInCombat,
+    formatResourcesMessage,
+    logHandlerAction
+} from './utils/handlerMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,7 +51,49 @@ const WORLD = {
             zombies: 0,
             nivelRuido: 0,
             defensas: 50,
-            conectado_a: ['supermercado', 'farmacia', 'casa_abandonada', 'hospital', 'comisaria']
+            conectado_a: ['supermercado', 'farmacia', 'casa_abandonada', 'hospital', 'comisaria'],
+            // 🏘️ SUB-UBICACIONES INTERNAS DEL REFUGIO
+            subLocations: {
+                plaza: {
+                    id: 'plaza',
+                    nombre: '🔥 Plaza Central',
+                    descripcion: 'El corazón del refugio. Una fogata arde en el centro donde la gente se reúne.',
+                    activities: ['posts', 'fogata', 'reuniones'],
+                    isDefault: true // Ubicación inicial
+                },
+                taberna: {
+                    id: 'taberna',
+                    nombre: '🍺 Taberna "El Último Trago"',
+                    descripcion: 'Una cantina improvisada. Huele a alcohol casero y sudor.',
+                    activities: ['poker', 'blackjack', 'comercio', 'romance'],
+                    games: ['poker', 'blackjack']
+                },
+                callejon: {
+                    id: 'callejon',
+                    nombre: '🎲 Callejón Oscuro',
+                    descripcion: 'Un pasillo sombrío donde se oyen susurros y risas nerviosas.',
+                    activities: ['dados', 'mercado_negro', 'apuestas'],
+                    games: ['dados', 'ruleta']
+                },
+                enfermeria: {
+                    id: 'enfermeria',
+                    nombre: '⚕️ Enfermería',
+                    descripcion: 'Camillas improvisadas. Olor a desinfectante y sangre.',
+                    activities: ['curacion', 'dialogo_medico']
+                },
+                taller: {
+                    id: 'taller',
+                    nombre: '🛠️ Taller',
+                    descripcion: 'Banco de trabajo con herramientas oxidadas. Se oyen martillazos.',
+                    activities: ['crafteo', 'reparaciones']
+                },
+                dormitorios: {
+                    id: 'dormitorios',
+                    nombre: '🛏️ Dormitorios',
+                    descripcion: 'Literas apretadas. Algunos ronquidos. Privacidad limitada.',
+                    activities: ['descanso', 'inventario']
+                }
+            }
         },
         supermercado: {
             id: 'supermercado',
@@ -152,6 +211,7 @@ const WORLD = {
             nombre: 'Dr. Gómez',
             rol: 'medico',
             locacion: 'refugio',
+            subLocation: 'enfermeria', // ⚕️ En la enfermería
             salud: 80,
             hambre: 60,
             moral: 70,
@@ -197,6 +257,7 @@ const WORLD = {
             nombre: 'María',
             rol: 'civil',
             locacion: 'refugio',
+            subLocation: 'enfermeria', // ⚕️ Enferma, en tratamiento
             salud: 30, // GRAVE
             hambre: 80,
             moral: 40,
@@ -242,6 +303,7 @@ const WORLD = {
             nombre: 'Capitán Rivas',
             rol: 'lider',
             locacion: 'refugio',
+            subLocation: 'plaza', // 🔥 Lidera en la plaza central
             salud: 100,
             hambre: 50,
             moral: 80,
@@ -290,6 +352,7 @@ const WORLD = {
             nombre: 'Jorge el Comerciante',
             rol: 'comercio',
             locacion: 'refugio',
+            subLocation: 'callejon', // 🎲 Mercado negro en el callejón
             salud: 90,
             hambre: 70,
             moral: 60,
@@ -329,6 +392,91 @@ const WORLD = {
                 'La comisaría tiene un arsenal. Lleno de zombies también.',
                 'Conozco un atajo al hospital, pero es peligroso.',
                 '¿Confías en el Capitán Rivas? Yo no estoy seguro...'
+            ]
+        },
+        // === NUEVOS NPCs POR SUB-UBICACIÓN ===
+        rosa: {
+            id: 'rosa',
+            nombre: 'Rosa',
+            avatar: '👩‍🦰',
+            rol: 'tabernera',
+            locacion: 'refugio',
+            subLocation: 'taberna', // 🍺 Taberna
+            salud: 85,
+            hambre: 60,
+            moral: 70,
+            vivo: true,
+            estado: 'activo',
+            enMision: false,
+            // 💕 SISTEMA DE ROMANCE
+            romanceable: true,
+            relationshipLevel: 0, // 0-100
+            personality: {
+                likes: ['flores', 'vino', 'poesia', 'proteccion'],
+                dislikes: ['violencia', 'mentiras', 'groseria'],
+                flirtDifficulty: 'hard'
+            },
+            inventario: { comida: 10, bebidas: 15, fichas: 200 },
+            dialogo: '¿Qué quieres? Estoy ocupada limpiando mesas.',
+            dialogos: [
+                // Nivel 0-20: Distante
+                '¿Qué quieres? Estoy ocupada.',
+                'La bebida cuesta fichas. ¿Tienes?',
+                '*limpia una mesa sin mirarte*',
+                'No doy nada gratis.',
+                'Aquí se trabaja o se paga.',
+                // Nivel 21-40: Neutra
+                'Ah, eres tú de nuevo.',
+                '¿Necesitas algo de la taberna?',
+                'No molestes a los borrachos.',
+                'Tengo un guiso preparado si tienes hambre.',
+                '¿Sabes jugar poker? Hay partidas cada noche.',
+                // Nivel 41-60: Amigable
+                '*sonrisa ligera* ¿Otra vez por aquí?',
+                'Me caes bien. Siempre ayudas.',
+                'Toma, te guardé un poco de pan.',
+                '¿Has visto las estrellas últimamente?',
+                'A veces extraño... una vida normal.',
+                // Nivel 61-80: Coqueta
+                '*se sonroja* ¿Me estás mirando?',
+                'Eres... diferente a los demás.',
+                '¿Quieres quedarte después del cierre?',
+                '*te toca el brazo* Gracias por... todo.',
+                'No sé qué haría sin ti aquí.',
+                // Nivel 81-100: Romántica
+                'Te he estado esperando...',
+                '*beso suave* Me haces sentir segura.',
+                'Quédate conmigo esta noche.',
+                'Eres la única razón por la que sigo aquí.',
+                '*abraza* No me dejes sola.'
+            ]
+        },
+        tuerto: {
+            id: 'tuerto',
+            nombre: 'El Tuerto',
+            avatar: '🎲',
+            rol: 'apostador',
+            locacion: 'refugio',
+            subLocation: 'callejon', // 🎲 Callejón
+            salud: 70,
+            hambre: 50,
+            moral: 60,
+            vivo: true,
+            estado: 'activo',
+            enMision: false,
+            inventario: { fichas: 500, dados: 3 },
+            dialogo: '¿Vienes a jugar o a mirar?',
+            dialogos: [
+                '*lanza dados al aire*',
+                'Todo es cuestión de suerte... o habilidad.',
+                '¿Cuánto apuestas?',
+                'Perdí mi ojo en una apuesta. Mala noche.',
+                'Aquí las reglas las pongo yo.',
+                '¿Tienes fichas? Entonces siéntate.',
+                'He visto tramposos. No termina bien para ellos.',
+                '*ríe* ¡Doble seis! Tu turno.',
+                'El callejón es para los que se atreven.',
+                '*voz baja* ¿Buscas... algo especial? Conozco gente.'
             ]
         },
         // === REFUGIO NORTE - NUEVOS NPCs ===
@@ -792,34 +940,84 @@ const WORLD = {
 };
 
 // ====================================
+// SISTEMA DE FOGATA (POSTS Y RED SOCIAL)
+// ====================================
+const POSTS_DB = []; // Array de posts: { id, authorId, authorName, title, content, category, timestamp, likes: [], comments: [] }
+let postIdCounter = 1;
+
+const COMMENTS_DB = []; // Array de comentarios: { id, postId, authorId, authorName, content, timestamp }
+let commentIdCounter = 1;
+
+// ====================================
+// SISTEMA DE JUEGOS DE MESA
+// ====================================
+const ACTIVE_GAMES = []; // Array de juegos activos: { id, type, players: [], pot: {}, status, minPlayers, maxPlayers, currentTurn }
+let gameIdCounter = 1;
+
+// Tipos de juegos disponibles
+const GAME_TYPES = {
+    poker: {
+        name: 'Póker',
+        minPlayers: 2,
+        maxPlayers: 6,
+        anteCost: { comida: 5 }
+    },
+    dice: {
+        name: 'Dados',
+        minPlayers: 2,
+        maxPlayers: 4,
+        anteCost: { comida: 3 }
+    },
+    roulette: {
+        name: 'Ruleta',
+        minPlayers: 1,
+        maxPlayers: 8,
+        anteCost: { comida: 2 }
+    },
+    blackjack: {
+        name: 'Blackjack',
+        minPlayers: 1,
+        maxPlayers: 5,
+        anteCost: { comida: 4 }
+    }
+};
+
+// ====================================
+// INICIALIZAR NUEVA ARQUITECTURA
+// ====================================
+const { engine, world: newWorld } = initializeNewEngine();
+console.log('✅ Nueva arquitectura inicializada (TimeSystem, ZombieSystem, NpcSystem)');
+
+// ====================================
+// INICIALIZAR INVENTARIOS DE NPCs
+// ====================================
+// Asegurar que todos los NPCs tengan inventario para poder jugar en el casino
+Object.values(WORLD.npcs).forEach(npc => {
+    if (!npc.inventario) {
+        npc.inventario = {
+            comida: 20,
+            medicinas: 5,
+            materiales: 10,
+            armas: 2
+        };
+    }
+    if (!npc.avatar) {
+        npc.avatar = '🤖';
+    }
+    if (!npc.color) {
+        npc.color = '#00aaff';
+    }
+});
+console.log('✅ Inventarios de NPCs inicializados para juegos de casino');
+
+// ====================================
 // SIMULACIÓN DEL MUNDO (cada 10 seg)
 // ====================================
 
 setInterval(() => {
-    WORLD.simulationTime++;
-
-    // Ciclo día/noche (cada tick = 10 minutos de juego)
-    WORLD.timeOfDay = Math.floor((WORLD.simulationTime * 10 / 60) % 24);
-    if (WORLD.timeOfDay === 0 && (WORLD.simulationTime * 10) % 1440 === 0) {
-        WORLD.dayCount++;
-        broadcast({
-            type: 'world:event',
-            message: `🌅 Amaneció. Día ${WORLD.dayCount}`,
-            category: 'time'
-        });
-    }
-
-    const hora = (WORLD.simulationTime * 10) % 1440; // Minutos del día (0-1440)
-    const esNoche = WORLD.timeOfDay >= 20 || WORLD.timeOfDay <= 6;
-
-    // Durante la noche, más zombies aparecen
-    if (esNoche && Math.random() < 0.3) {
-        Object.values(WORLD.locations).forEach(loc => {
-            if (loc.tipo === 'loot' && loc.zombies < 20) {
-                loc.zombies += Math.floor(Math.random() * 2) + 1;
-            }
-        });
-    }
+    // 🆕 NUEVA ARQUITECTURA LIMPIA (Sistemas: Time, Zombie, NPC)
+    // Esto ejecuta los 3 sistemas migrados y sincroniza WORLD automáticamente
+    tickNewArchitecture(WORLD);
 
     // Huerto genera comida si está mejorado
     if (WORLD.refugioUpgrades.huerto.nivel > 0 && WORLD.simulationTime % 10 === 0) {
@@ -892,62 +1090,8 @@ setInterval(() => {
         console.log(`📖 EVENTO NARRATIVO: ${WORLD.activeNarrativeEvent.nombre} (Parte ${WORLD.activeNarrativeEvent.parte})`);
     }
 
-    // NPCs pierden hambre y tienen rutinas
-    Object.values(WORLD.npcs).forEach(npc => {
-        if (!npc.vivo) return;
-
-        npc.hambre = Math.max(0, npc.hambre - 2);
-
-        // Rutina: dormir (0-360 = 0-6am)
-        if (hora >= 0 && hora < 360) {
-            npc.estado = 'durmiendo';
-            npc.salud = Math.min(100, npc.salud + 2); // Recupera salud
-        } else if (hora >= 360 && hora < 720) {
-            npc.estado = 'trabajando';
-        } else {
-            npc.estado = 'activo';
-        }
-
-        // NPCs se alimentan automáticamente del refugio si tienen hambre
-        if (npc.hambre < 30 && npc.locacion === 'refugio' && WORLD.locations.refugio.recursos.comida > 0) {
-            WORLD.locations.refugio.recursos.comida -= 1;
-            npc.hambre = Math.min(100, npc.hambre + 25);
-            npc.moral += 5;
-            console.log(`🍖 ${npc.nombre} comió del refugio`);
-            broadcast({
-                type: 'world:event',
-                message: `🍖 ${npc.nombre} comió del refugio`,
-                category: 'npc'
-            });
-        }
-
-        // Moral baja si salud baja
-        if (npc.salud < 30) {
-            npc.moral = Math.max(0, npc.moral - 3);
-        }
-
-        // NPCs no mueren, solo quedan muy debilitados
-        if (npc.salud <= 0) {
-            // npc.vivo = false;
-            npc.salud = 5; // Quedan con 5 HP mínimo
-            npc.moral = Math.max(0, npc.moral - 10);
-            console.log(`⚠️ ${npc.nombre} está gravemente herido`);
-            broadcast({ type: 'npc:injured', npcId: npc.id, nombre: npc.nombre });
-            broadcast({
-                type: 'world:event',
-                message: `⚠️ ${npc.nombre} está gravemente herido`,
-                category: 'death'
-            });
-
-            // Generar quest de funeral
-            WORLD.activeQuests.push({
-                id: `funeral_${npc.id}`,
-                tipo: 'social',
-                descripcion: `${npc.nombre} ha muerto. Deberías enterrarlo.`,
-                recompensa: 'moral de grupo'
-            });
-        }
-    });
+    // ✅ RUTINAS DE NPCs AHORA MANEJADAS POR NpcSystem
+    // (hambre, dormir, trabajar, alimentación automática, moral, health cap)
 
     // NPCs HABLAN ENTRE ELLOS (cada 90 segundos - más frecuente)
     if (WORLD.simulationTime % 9 === 0 && Math.random() > 0.3) {
@@ -1062,22 +1206,8 @@ setInterval(() => {
         }
     });
 
-    // Zombies migran según ruido
-    Object.values(WORLD.locations).forEach(loc => {
-        // Decae el ruido con el tiempo
-        loc.nivelRuido = Math.max(0, loc.nivelRuido - 2);
-
-        // Migración aleatoria
-        if (Math.random() > 0.7) {
-            const change = Math.floor(Math.random() * 3) - 1;
-            loc.zombies = Math.max(0, loc.zombies + change);
-        }
-
-        // Atraídos por ruido alto
-        if (loc.nivelRuido > 50 && loc.zombies > 0) {
-            loc.zombies += Math.floor(Math.random() * 3) + 1;
-        }
-    });
+    // ✅ ZOMBIES AHORA MANEJADOS POR ZombieSystem
+    // (ruido decay, respawn después de 30min, spawns nocturnos, atracción por ruido)
 
     // Sistema de hordas (cada 5 minutos de juego puede haber una)
     if (WORLD.simulationTime % 30 === 0 && !WORLD.nextHorde) {
@@ -1220,7 +1350,110 @@ setInterval(() => {
         WORLD.questCooperativa.activa = false;
     }
 
-    console.log(`⏰ Tick ${WORLD.simulationTime} | Hora: ${Math.floor(hora / 60)}:${hora % 60}`);
+    // ====================================
+    // NPCs SE UNEN A JUEGOS AUTOMÁTICAMENTE
+    // ====================================
+    // Cada 20 segundos (cada 2 ticks), los NPCs pueden unirse a juegos esperando jugadores
+    if (WORLD.simulationTime % 2 === 0) {
+        const npcsDisponibles = Object.values(WORLD.npcs).filter(n =>
+            n.vivo &&
+            n.locacion === 'refugio' &&
+            !n.enMision &&
+            n.salud > 30 &&
+            n.hambre > 20
+        );
+
+        // Revisar juegos que necesitan jugadores
+        ACTIVE_GAMES.forEach(game => {
+            if (game.status === 'waiting' && game.players.length < game.maxPlayers) {
+                // 40% de probabilidad de que un NPC se una
+                if (Math.random() < 0.4 && npcsDisponibles.length > 0) {
+                    const gameConfig = GAME_TYPES[game.type];
+
+                    // Seleccionar un NPC aleatorio que no esté ya en el juego
+                    const npcsCandidatos = npcsDisponibles.filter(npc =>
+                        !game.players.some(p => p.id === npc.id)
+                    );
+
+                    if (npcsCandidatos.length > 0) {
+                        const npc = npcsCandidatos[Math.floor(Math.random() * npcsCandidatos.length)];
+
+                        // Verificar que el NPC tenga recursos suficientes
+                        const anteCost = gameConfig.anteCost;
+                        let tieneRecursos = true;
+                        for (const [resource, amount] of Object.entries(anteCost)) {
+                            if (!npc.inventario[resource] || npc.inventario[resource] < amount) {
+                                tieneRecursos = false;
+                                break;
+                            }
+                        }
+
+                        if (tieneRecursos) {
+                            // Cobrar apuesta del NPC
+                            for (const [resource, amount] of Object.entries(anteCost)) {
+                                npc.inventario[resource] -= amount;
+                                game.pot[resource] += amount;
+                            }
+
+                            // Agregar NPC al juego
+                            game.players.push({
+                                id: npc.id,
+                                nombre: npc.nombre,
+                                avatar: npc.avatar || '🤖',
+                                color: npc.color || '#00aaff',
+                                bet: { ...anteCost },
+                                ready: true, // NPCs siempre están listos automáticamente
+                                isNPC: true
+                            });
+
+                            console.log(`🎲 NPC ${npc.nombre} se unió a ${gameConfig.name} (${game.players.length}/${gameConfig.maxPlayers})`);
+
+                            // Broadcast actualización de juego
+                            broadcast({
+                                type: 'game:updated',
+                                game: game,
+                                action: 'joined',
+                                joiner: npc.nombre
+                            });
+
+                            // Broadcast que el NPC está listo
+                            broadcast({
+                                type: 'game:player_ready',
+                                gameId: game.id,
+                                playerId: npc.id,
+                                playerName: npc.nombre,
+                                game: game
+                            });
+
+                            // Verificar si todos están listos para iniciar
+                            const allReady = game.players.every(p => p.ready);
+                            const hasMinPlayers = game.players.length >= game.minPlayers;
+
+                            if (allReady && hasMinPlayers && game.status === 'waiting') {
+                                game.status = 'playing';
+
+                                broadcast({
+                                    type: 'game:started',
+                                    gameId: game.id,
+                                    game: game
+                                });
+
+                                console.log(`🎯 Juego ${game.type} iniciado con ${game.players.length} jugadores`);
+
+                                // Iniciar lógica del juego específico
+                                setTimeout(() => {
+                                    resolveGame(game);
+                                }, 2000); // 2 segundos para que vean que inició
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Log de tick (usando timeOfDay sincronizado desde TimeSystem)
+    console.log(`⏰ Tick ${WORLD.simulationTime} | Hora del día: ${WORLD.timeOfDay}:00`);
 }, 10000);
 
 // Aplicar consecuencias de quest cooperativa
@@ -1616,20 +1849,307 @@ function useSpecialAbility(player, abilityId, ws) {
 }
 
 // ====================================
+// SISTEMA DE RESPUESTAS AUTOMÁTICAS DE NPCs
+// ====================================
+function generateNPCComment(postId, originalComment) {
+    const npcResponders = [
+        { name: 'Dr. Chen', avatar: '🧑‍⚕️', color: '#4fc3f7', personality: 'helpful' },
+        { name: 'Marina', avatar: '👩‍🔧', color: '#ff9800', personality: 'practical' },
+        { name: 'Sargento Díaz', avatar: '👨‍✈️', color: '#f44336', personality: 'serious' },
+        { name: 'Luna', avatar: '🧒', color: '#e91e63', personality: 'optimistic' }
+    ];
+
+    const npc = npcResponders[Math.floor(Math.random() * npcResponders.length)];
+
+    // Analizar el comentario original para generar respuesta contextual
+    const lowerComment = originalComment.toLowerCase();
+    let response;
+
+    if (lowerComment.includes('comida') || lowerComment.includes('hambre')) {
+        const responses = [
+            'Hay raciones en el almacén norte, pero hay que ir con cuidado.',
+            'La última expedición trajo algo de comida enlatada.',
+            'Recuerda racionar los recursos, no sabemos cuánto durará esto.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    } else if (lowerComment.includes('medicina') || lowerComment.includes('herido') || lowerComment.includes('enfermo')) {
+        const responses = [
+            'El botiquín está casi vacío. Necesitamos hacer una expedición a la farmacia.',
+            'Puedo ayudar con primeros auxilios si es urgente.',
+            'La enfermería tiene vendajes, pero medicinas... eso escasea.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    } else if (lowerComment.includes('zombie') || lowerComment.includes('infectado')) {
+        const responses = [
+            'Escuché ruidos cerca del perímetro norte anoche.',
+            'Los zombies son más activos al anochecer. Mejor quedarse dentro.',
+            'Si ves una horda, NO te enfrentes solo. Avisa por radio.',
+            'Las paredes aguantan, pero necesitamos reforzarlas.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    } else if (lowerComment.includes('miedo') || lowerComment.includes('asustado') || lowerComment.includes('preocupado')) {
+        const responses = [
+            'Todos tenemos miedo. Pero juntos somos más fuertes.',
+            'Es normal tener miedo, pero no dejes que te paralice.',
+            'Hemos sobrevivido hasta ahora. Seguiremos haciéndolo.',
+            'Hablar ayuda. No te guardes todo para ti.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    } else if (lowerComment.includes('gracias') || lowerComment.includes('ayuda')) {
+        const responses = [
+            'De nada, estamos en esto juntos.',
+            'Para eso estamos aquí, para ayudarnos.',
+            'No tienes que agradecer, es lo que hacemos.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    } else {
+        // Respuestas genéricas
+        const responses = [
+            'Interesante punto de vista.',
+            'Tienes razón en eso.',
+            'No había pensado en eso.',
+            'Deberíamos discutir esto en la próxima reunión.',
+            'Buena observación.',
+            'Anotado. Gracias por compartir.'
+        ];
+        response = responses[Math.floor(Math.random() * responses.length)];
+    }
+
+    const post = POSTS_DB.find(p => p.id === postId);
+    if (!post) return;
+
+    const npcComment = {
+        id: `comment_${commentIdCounter++}`,
+        postId: postId,
+        authorId: `npc_${npc.name}`,
+        authorName: npc.name,
+        authorAvatar: npc.avatar,
+        authorColor: npc.color,
+        content: response,
+        timestamp: Date.now(),
+        isNPC: true
+    };
+
+    COMMENTS_DB.push(npcComment);
+    post.commentCount++;
+
+    broadcast({
+        type: 'fogata:comment_added',
+        postId: post.id,
+        comment: npcComment,
+        commentCount: post.commentCount
+    });
+
+    console.log(`🤖 ${npc.name} respondió en el post ${postId}`);
+}
+
+// ====================================
+// FUNCIÓN PARA RESOLVER JUEGOS
+// ====================================
+function resolveGame(game) {
+    console.log(`🎲 Resolviendo juego: ${game.name} (${game.id})`);
+
+    if (game.status !== 'playing') return;
+
+    const gameConfig = GAME_TYPES[game.type];
+    let winners = [];
+
+    // Lógica de resolución según el tipo de juego
+    switch (game.type) {
+        case 'dice':
+            // Tirar dados para cada jugador SECUENCIALMENTE con delays
+            let delay = 0;
+            game.players.forEach((player, index) => {
+                setTimeout(() => {
+                    player.roll = Math.floor(Math.random() * 6) + 1;
+
+                    // Broadcast cada tirada individual
+                    broadcast({
+                        type: 'game:dice_rolled',
+                        gameId: game.id,
+                        playerId: player.id,
+                        playerName: player.nombre,
+                        roll: player.roll,
+                        currentPlayer: index + 1,
+                        totalPlayers: game.players.length
+                    });
+
+                    console.log(`🎲 ${player.nombre} tiró: ${player.roll}`);
+
+                    // Si es el último jugador, resolver el juego
+                    if (index === game.players.length - 1) {
+                        setTimeout(() => {
+                            finalizeDiceGame(game);
+                        }, 2000);
+                    }
+                }, delay);
+
+                delay += 2000; // 2 segundos entre cada tirada
+            });
+            return; // Salir aquí, finalizeDiceGame manejará el resto
+
+        case 'poker':
+            // Simulación simple: asignar puntajes aleatorios
+            game.players.forEach(player => {
+                player.hand = Math.floor(Math.random() * 100) + 1;
+            });
+
+            const maxHand = Math.max(...game.players.map(p => p.hand));
+            winners = game.players.filter(p => p.hand === maxHand);
+            break;
+
+        case 'roulette':
+            // Ruleta: número aleatorio del 0 al 36
+            const winningNumber = Math.floor(Math.random() * 37);
+
+            game.players.forEach(player => {
+                player.bet_number = Math.floor(Math.random() * 37);
+                if (player.bet_number === winningNumber) {
+                    winners.push(player);
+                }
+            });
+
+            // Si nadie ganó, la casa gana (no hay winners)
+            break;
+
+        case 'blackjack':
+            // Simulación de blackjack
+            game.players.forEach(player => {
+                // Mano aleatoria entre 15 y 21 (o se pasa)
+                const rand = Math.random();
+                if (rand < 0.3) {
+                    player.score = Math.floor(Math.random() * 10) + 22; // Se pasó (22-31)
+                } else {
+                    player.score = Math.floor(Math.random() * 7) + 15; // Mano válida (15-21)
+                }
+            });
+
+            // Filtrar jugadores que no se pasaron
+            const validPlayers = game.players.filter(p => p.score <= 21);
+
+            if (validPlayers.length > 0) {
+                const maxScore = Math.max(...validPlayers.map(p => p.score));
+                winners = validPlayers.filter(p => p.score === maxScore);
+            }
+            break;
+    }
+
+    // Distribuir el pot
+    if (winners.length > 0) {
+        const share = {};
+
+        // Dividir el pot entre los ganadores
+        Object.entries(game.pot).forEach(([resource, amount]) => {
+            share[resource] = Math.floor(amount / winners.length);
+        });
+
+        // Dar recompensas a ganadores
+        winners.forEach(winner => {
+            const player = WORLD.players[winner.id];
+            if (player) {
+                Object.entries(share).forEach(([resource, amount]) => {
+                    if (amount > 0) {
+                        player.inventario[resource] = (player.inventario[resource] || 0) + amount;
+                    }
+                });
+            }
+        });
+
+        console.log(`🏆 Ganador(es): ${winners.map(w => w.nombre).join(', ')}`);
+    } else {
+        console.log(`💰 La casa gana - nadie obtuvo premio`);
+    }
+
+    // Broadcast resultado
+    game.status = 'finished';
+    game.winners = winners.map(w => w.id);
+    game.endedAt = Date.now();
+
+    broadcast({
+        type: 'game:finished',
+        game: game,
+        winners: winners.map(w => ({ id: w.id, nombre: w.nombre }))
+    });
+
+    // Remover juego después de 10 segundos
+    setTimeout(() => {
+        const index = ACTIVE_GAMES.findIndex(g => g.id === game.id);
+        if (index !== -1) {
+            ACTIVE_GAMES.splice(index, 1);
+        }
+    }, 10000);
+}
+
+// Función auxiliar para finalizar juego de dados
+function finalizeDiceGame(game) {
+    // Encontrar mayor resultado
+    const maxRoll = Math.max(...game.players.map(p => p.roll));
+    const winners = game.players.filter(p => p.roll === maxRoll);
+
+    // Distribuir el pot
+    if (winners.length > 0) {
+        const share = {};
+
+        // Dividir el pot entre los ganadores
+        Object.entries(game.pot).forEach(([resource, amount]) => {
+            share[resource] = Math.floor(amount / winners.length);
+        });
+
+        // Dar recompensas a ganadores
+        winners.forEach(winner => {
+            const player = WORLD.players[winner.id];
+            const npc = WORLD.npcs[winner.id];
+            const entity = player || npc;
+
+            if (entity) {
+                Object.entries(share).forEach(([resource, amount]) => {
+                    if (amount > 0) {
+                        entity.inventario[resource] = (entity.inventario[resource] || 0) + amount;
+                    }
+                });
+            }
+        });
+
+        console.log(`🏆 Ganador(es): ${winners.map(w => w.nombre).join(', ')}`);
+    } else {
+        console.log(`💰 La casa gana - nadie obtuvo premio`);
+    }
+
+    // Broadcast resultado
+    game.status = 'finished';
+    game.winners = winners.map(w => w.id);
+    game.endedAt = Date.now();
+
+    broadcast({
+        type: 'game:finished',
+        game: game,
+        winners: winners.map(w => ({ id: w.id, nombre: w.nombre }))
+    });
+
+    // Remover juego después de 10 segundos
+    setTimeout(() => {
+        const index = ACTIVE_GAMES.findIndex(g => g.id === game.id);
+        if (index !== -1) {
+            ACTIVE_GAMES.splice(index, 1);
+        }
+    }, 10000);
+}
+
+// ====================================
 // API REST - AUTH Y PERSONAJES
 // ====================================
 
 // Crear jugador directo (para compatibility con survival.html)
 app.post('/api/player/create', (req, res) => {
     const { nombre } = req.body;
-    
+
     if (!nombre || nombre.length < 3) {
         return res.json({ success: false, error: 'Nombre muy corto (mínimo 3 caracteres)' });
     }
-    
+
     // Generar ID único para el jugador
     const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Crear jugador en memoria
     WORLD.players[playerId] = {
         id: playerId,
@@ -1667,11 +2187,11 @@ app.post('/api/player/create', (req, res) => {
             trade: 0
         }
     };
-    
+
     console.log(`✅ Jugador creado: ${nombre} (${playerId})`);
-    
-    res.json({ 
-        success: true, 
+
+    res.json({
+        success: true,
         player: WORLD.players[playerId]
     });
 });
@@ -1698,12 +2218,15 @@ app.post('/api/auth/login', (req, res) => {
 
 // Crear personaje
 app.post('/api/personaje/crear', (req, res) => {
-    const { usuarioId, nombre, clase, atributos, avatar, color } = req.body;
+    const { usuarioId, nombre, clase, fuerza, resistencia, agilidad, inteligencia, avatar, color } = req.body;
 
     const result = survivalDB.crearPersonaje(usuarioId, {
         nombre,
         clase,
-        ...atributos,
+        fuerza: fuerza || 5,
+        resistencia: resistencia || 5,
+        agilidad: agilidad || 5,
+        inteligencia: inteligencia || 5,
         avatar,
         color
     });
@@ -1731,7 +2254,11 @@ app.post('/api/personaje/load', (req, res) => {
         return res.json({ success: false, error: 'Personaje no encontrado' });
     }
 
-    const playerId = `player_${personajeId}_${Date.now()}`;
+    // ID consistente sin timestamp para que funcione en múltiples conexiones
+    const playerId = `player_${personajeId}`;
+
+    // Calcular salud máxima basada en resistencia
+    const saludMaxima = 100 + (personaje.resistencia * 10);
 
     WORLD.players[playerId] = {
         id: playerId,
@@ -1741,7 +2268,8 @@ app.post('/api/personaje/load', (req, res) => {
         nivel: personaje.nivel,
         xp: personaje.xp,
         xpParaSiguienteNivel: personaje.xp_siguiente_nivel,
-        salud: personaje.salud,
+        salud: Math.min(personaje.salud, saludMaxima),
+        saludMaxima: saludMaxima,
         hambre: personaje.hambre,
         locacion: personaje.locacion,
         inventario: personaje.inventario,
@@ -2339,12 +2867,65 @@ function throttledBroadcast(type, message, excludePlayerId = null) {
     });
 }
 
+// ====================================
+// BROADCAST SYSTEM (Con batching opcional)
+// ====================================
+
+// Cola de mensajes pendientes para batching (sistema nuevo)
+const batchBroadcastQueue = {
+    messages: [],
+    timer: null,
+
+    add(message, excludePlayerId = null, priority = false) {
+        if (priority) {
+            // Mensajes de alta prioridad se envían inmediatamente
+            this.flush();
+            broadcast(message, excludePlayerId);
+        } else {
+            // Mensajes normales se agregan a la cola
+            this.messages.push({ message, excludePlayerId });
+
+            // Si no hay timer activo, programar flush
+            if (!this.timer) {
+                this.timer = setTimeout(() => this.flush(), 50); // Flush cada 50ms
+            }
+        }
+    },
+
+    flush() {
+        if (this.timer) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+
+        if (this.messages.length === 0) return;
+
+        // Enviar todos los mensajes acumulados
+        const messagesToSend = [...this.messages];
+        this.messages = [];
+
+        messagesToSend.forEach(({ message, excludePlayerId }) => {
+            broadcast(message, excludePlayerId);
+        });
+    }
+};
+
 function broadcast(message, excludePlayerId = null) {
     connections.forEach((ws, pid) => {
         if (pid !== excludePlayerId && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify(message));
         }
     });
+}
+
+// Broadcast con batching (usar para eventos no críticos)
+function broadcastBatch(message, excludePlayerId = null) {
+    batchBroadcastQueue.add(message, excludePlayerId, false);
+}
+
+// Broadcast prioritario (usar para eventos críticos como combat, login, etc)
+function broadcastPriority(message, excludePlayerId = null) {
+    batchBroadcastQueue.add(message, excludePlayerId, true);
 }
 
 // Función para obtener lista de jugadores conectados
@@ -2487,8 +3068,1804 @@ wss.on('connection', (ws) => {
         }
     });
 
+    // ============================================
+    // 🆕 SISTEMA DE DISPATCHER CENTRALIZADO
+    // ============================================
+
+    // ===== SISTEMA DE CACHING CON TTL =====
+    const cache = {
+        store: new Map(),
+
+        set(key, value, ttl = 5000) {
+            const expires = Date.now() + ttl;
+            this.store.set(key, { value, expires });
+        },
+
+        get(key) {
+            const entry = this.store.get(key);
+            if (!entry) return null;
+
+            if (Date.now() > entry.expires) {
+                this.store.delete(key);
+                return null;
+            }
+
+            return entry.value;
+        },
+
+        invalidate(pattern) {
+            // Invalidar todas las claves que coincidan con el patrón
+            if (pattern instanceof RegExp) {
+                for (const key of this.store.keys()) {
+                    if (pattern.test(key)) {
+                        this.store.delete(key);
+                    }
+                }
+            } else {
+                this.store.delete(pattern);
+            }
+        },
+
+        clear() {
+            this.store.clear();
+        },
+
+        size() {
+            return this.store.size;
+        }
+    };
+
+    // Limpieza automática del caché cada 30 segundos
+    setInterval(() => {
+        const now = Date.now();
+        for (const [key, entry] of cache.store.entries()) {
+            if (now > entry.expires) {
+                cache.store.delete(key);
+            }
+        }
+    }, 30000);
+
+    // ===== SISTEMA DE RATE LIMITING =====
+    const rateLimiter = {
+        requests: new Map(),
+
+        check(playerId, action, maxRequests = 10, windowMs = 60000) {
+            const key = `${playerId}:${action}`;
+            const now = Date.now();
+
+            if (!this.requests.has(key)) {
+                this.requests.set(key, []);
+            }
+
+            const timestamps = this.requests.get(key);
+            // Filtrar timestamps antiguos fuera de la ventana
+            const validTimestamps = timestamps.filter(t => now - t < windowMs);
+
+            if (validTimestamps.length >= maxRequests) {
+                return { allowed: false, remaining: 0, resetIn: windowMs - (now - validTimestamps[0]) };
+            }
+
+            validTimestamps.push(now);
+            this.requests.set(key, validTimestamps);
+
+            return { allowed: true, remaining: maxRequests - validTimestamps.length, resetIn: windowMs };
+        },
+
+        reset(playerId, action = null) {
+            if (action) {
+                this.requests.delete(`${playerId}:${action}`);
+            } else {
+                // Resetear todas las acciones del jugador
+                for (const key of this.requests.keys()) {
+                    if (key.startsWith(`${playerId}:`)) {
+                        this.requests.delete(key);
+                    }
+                }
+            }
+        }
+    };
+
+    // Limpieza automática de rate limiter cada minuto
+    setInterval(() => {
+        const now = Date.now();
+        for (const [key, timestamps] of rateLimiter.requests.entries()) {
+            const validTimestamps = timestamps.filter(t => now - t < 60000);
+            if (validTimestamps.length === 0) {
+                rateLimiter.requests.delete(key);
+            } else {
+                rateLimiter.requests.set(key, validTimestamps);
+            }
+        }
+    }, 60000);
+
+    // Sistema de métricas para handlers
+    const handlerMetrics = {
+        calls: {},       // Contador de llamadas por handler
+        errors: {},      // Contador de errores por handler
+        totalTime: {},   // Tiempo total de ejecución por handler
+        lastUsed: {}     // Última vez que se usó cada handler
+    };
+
+    const recordMetric = (handlerType, duration, hadError = false) => {
+        if (!handlerMetrics.calls[handlerType]) {
+            handlerMetrics.calls[handlerType] = 0;
+            handlerMetrics.errors[handlerType] = 0;
+            handlerMetrics.totalTime[handlerType] = 0;
+        }
+        handlerMetrics.calls[handlerType]++;
+        handlerMetrics.totalTime[handlerType] += duration;
+        handlerMetrics.lastUsed[handlerType] = Date.now();
+        if (hadError) {
+            handlerMetrics.errors[handlerType]++;
+        }
+    };
+
+    // Comando para ver métricas (útil para debugging)
+    const getMetricsReport = () => {
+        const report = [];
+        Object.keys(handlerMetrics.calls).forEach(type => {
+            const calls = handlerMetrics.calls[type];
+            const errors = handlerMetrics.errors[type];
+            const avgTime = (handlerMetrics.totalTime[type] / calls).toFixed(2);
+            const lastUsed = new Date(handlerMetrics.lastUsed[type]).toLocaleTimeString();
+            report.push({
+                handler: type,
+                calls,
+                errors,
+                avgTime: `${avgTime}ms`,
+                errorRate: `${((errors / calls) * 100).toFixed(1)}%`,
+                lastUsed
+            });
+        });
+        return report.sort((a, b) => b.calls - a.calls);
+    };
+
+    // Helpers para respuestas
+    const sendError = (ws, error) => {
+        ws.send(JSON.stringify({ type: 'error', error }));
+    };
+
+    const sendSuccess = (ws, data) => {
+        ws.send(JSON.stringify(data));
+    };
+
+    // Handler wrapper con try-catch automático y métricas
+    const createHandler = (handlerFn) => {
+        return async (msg, ws, playerId) => {
+            const startTime = Date.now();
+            let hadError = false;
+            try {
+                await handlerFn(msg, ws, playerId);
+            } catch (error) {
+                hadError = true;
+                console.error(`❌ Error en handler ${msg.type}:`, error);
+                sendError(ws, `Error procesando ${msg.type}: ${error.message}`);
+            } finally {
+                const duration = Date.now() - startTime;
+                recordMetric(msg.type, duration, hadError);
+
+                // Log warning si el handler tarda mucho
+                if (duration > 1000) {
+                    console.warn(`⚠️ Handler ${msg.type} tardó ${duration}ms`);
+                }
+            }
+        };
+    };
+
+    // ====================================
+    // SERVICIOS DE LÓGICA DE NEGOCIO
+    // ====================================
+    const resourceService = new ResourceService(WORLD);
+    const combatService = new CombatService(WORLD);
+    const craftingService = new CraftingService();
+    const tradeService = new TradeService(WORLD);
+    const dialogueService = new DialogueService(WORLD);
+    const movementService = new MovementService(WORLD);
+    const inventoryService = new InventoryService();
+
+    // ====================================
+    // MESSAGE HANDLERS
+    // ====================================
+
+    // Dispatcher de mensajes (nuevo sistema)
+    const messageHandlers = {
+        // ===== CONEXIÓN Y MANTENIMIENTO =====
+        'ping': createHandler(async (msg, ws) => {
+            sendSuccess(ws, { type: 'pong' });
+        }),
+
+        'getPlayers': createHandler(async (msg, ws) => {
+            // Cachear lista de jugadores por 2 segundos
+            const cacheKey = 'playersList';
+            let connectedPlayers = cache.get(cacheKey);
+
+            if (!connectedPlayers) {
+                connectedPlayers = Array.from(connections.keys())
+                    .filter(pid => WORLD.players[pid])
+                    .map(pid => ({
+                        id: pid,
+                        nombre: WORLD.players[pid].nombre,
+                        locacion: WORLD.players[pid].locacion,
+                        nivel: WORLD.players[pid].nivel,
+                        stats: WORLD.players[pid].stats || {}
+                    }));
+
+                cache.set(cacheKey, connectedPlayers, 2000);
+            }
+
+            sendSuccess(ws, {
+                type: 'players:list',
+                players: connectedPlayers
+            });
+        }),
+
+        // ===== MOVIMIENTO =====
+        'move': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, '❌ Jugador no encontrado');
+
+            // Usar MovementService para lógica de movimiento
+            const result = movementService.move(player, msg.targetId);
+
+            if (!result.success) {
+                return sendError(ws, result.message);
+            }
+
+            // Trackear logros y stats
+            if (result.isNewLocation) {
+                updatePlayerStats(player, 'locaciones_visitadas', 1);
+                checkAchievements(player, ws);
+
+                if (result.xpBonus > 0) {
+                    giveXP(player, result.xpBonus, ws);
+                }
+            }
+
+            logHandlerAction(playerId, 'move', {
+                from: result.previousLocation,
+                to: msg.targetId,
+                isNew: result.isNewLocation
+            });
+
+            sendSuccess(ws, {
+                type: 'moved',
+                location: result.location,
+                message: result.message
+            });
+
+            broadcast({
+                type: 'player:moved',
+                playerId,
+                locacion: msg.targetId,
+                nombre: player.nombre
+            }, playerId);
+
+            broadcast({
+                type: 'world:event',
+                message: `🚶 ${player.nombre} se movió a ${result.location.nombre}`,
+                category: 'player'
+            }, playerId);
+        }),
+
+        // ===== CAMBIO DE SUB-UBICACIÓN =====
+        'sublocation:change': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            if (player.locacion !== 'refugio') {
+                return sendError(ws, 'Solo puedes cambiar de sub-ubicación en el refugio');
+            }
+
+            const refugio = WORLD.locations.refugio;
+            const subLoc = refugio.subLocations[msg.subLocationId];
+
+            if (!subLoc) {
+                return sendError(ws, 'Sub-ubicación inválida');
+            }
+
+            const targetSubLocation = msg.subLocationId;
+            player.subLocation = targetSubLocation;
+
+            sendSuccess(ws, {
+                type: 'sublocation:changed',
+                subLocation: targetSubLocation,
+                subLocationData: subLoc
+            });
+
+            broadcast({
+                type: 'player:subLocationChanged',
+                playerId,
+                nombre: player.nombre,
+                subLocation: targetSubLocation
+            }, playerId);
+        }),
+
+        // ===== INVENTARIO: CONSUMIR COMIDA =====
+        'eat': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, '❌ Jugador no encontrado');
+
+            // Usar InventoryService
+            const result = inventoryService.eat(player);
+
+            if (!result.success) {
+                return sendError(ws, result.message);
+            }
+
+            logHandlerAction(playerId, 'eat', { hambre: result.stats.hambre });
+
+            sendSuccess(ws, {
+                type: 'eat:success',
+                message: result.message,
+                stats: result.stats,
+                inventario: result.inventory
+            });
+
+            broadcast({
+                type: 'world:event',
+                message: `🍖 ${player.nombre} comió algo`,
+                category: 'player'
+            }, playerId);
+        }),
+
+        // ===== INVENTARIO: USAR MEDICINA =====
+        'heal': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, '❌ Jugador no encontrado');
+
+            // Usar InventoryService
+            const result = inventoryService.heal(player);
+
+            if (!result.success) {
+                return sendError(ws, result.message);
+            }
+
+            logHandlerAction(playerId, 'heal', { vida: result.stats.vida });
+
+            sendSuccess(ws, {
+                type: 'heal:success',
+                message: result.message,
+                stats: result.stats,
+                inventario: result.inventory
+            });
+
+            broadcast({
+                type: 'world:event',
+                message: `💊 ${player.nombre} usó medicina`,
+                category: 'player'
+            }, playerId);
+        }),
+
+        // ===== SCAVENGE (buscar recursos) =====
+        'scavenge': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 5 búsquedas por minuto
+            const rateLimit = rateLimiter.check(playerId, 'scavenge', 5, 60000);
+            if (!rateLimit.allowed) {
+                const segundos = Math.ceil(rateLimit.resetIn / 1000);
+                return sendError(ws, `⏱️ Demasiadas búsquedas. Espera ${segundos}s`);
+            }
+
+            // Cooldown check
+            if (player.cooldowns.scavenge && Date.now() < player.cooldowns.scavenge) {
+                const segundos = Math.ceil((player.cooldowns.scavenge - Date.now()) / 1000);
+                return sendError(ws, `Espera ${segundos}s antes de buscar de nuevo`);
+            }
+
+            const loc = WORLD.locations[player.locacion];
+            if (loc.tipo !== 'loot') {
+                return sendError(ws, 'No hay nada que buscar aquí');
+            }
+
+            // Hay zombies? Riesgo de daño
+            if (loc.zombies > 0) {
+                const riesgo = Math.max(0.1, 0.4 - (player.skills.sigilo * 0.05));
+                if (Math.random() < riesgo) {
+                    const danio = Math.floor(Math.random() * 15) + 10;
+                    player.salud -= danio;
+
+                    sendSuccess(ws, {
+                        type: 'combat',
+                        message: '🧟 ¡Un zombie te atacó!',
+                        damage: danio,
+                        salud: player.salud
+                    });
+
+                    loc.nivelRuido += 20;
+                }
+            }
+
+            // Encontrar recursos
+            const found = {};
+            Object.keys(loc.recursos).forEach(recurso => {
+                if (loc.recursos[recurso] <= 0) return;
+
+                const bonus = Math.floor(player.skills.supervivencia / 2);
+                let cantidad = Math.min(
+                    loc.recursos[recurso],
+                    Math.floor(Math.random() * (3 + bonus)) + 1
+                );
+
+                cantidad = applyClassBonus(player, 'loot', cantidad);
+
+                if (cantidad > 0) {
+                    found[recurso] = cantidad;
+                    player.inventario[recurso] = (player.inventario[recurso] || 0) + cantidad;
+                    loc.recursos[recurso] -= cantidad;
+                }
+            });
+
+            // Subir skill
+            player.skills.supervivencia = Math.min(10, player.skills.supervivencia + 0.1);
+
+            // Ganar XP
+            const xpGanado = 10 + Object.values(found).reduce((a, b) => a + b, 0) * 2;
+            giveXP(player, xpGanado, ws);
+
+            // Actualizar estadística de recursos
+            const totalRecursos = Object.values(player.inventario).reduce((a, b) => a + b, 0);
+            player.stats.recursos_totales = totalRecursos;
+            checkAchievements(player, ws);
+
+            // Cooldown de 3 segundos
+            player.cooldowns.scavenge = Date.now() + 3000;
+
+            sendSuccess(ws, {
+                type: 'scavenge:result',
+                found,
+                inventario: player.inventario
+            });
+        }),
+
+        // ===== SISTEMA DE COMBATE =====
+        'combat:start': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            const loc = WORLD.locations[player.locacion];
+            if (loc.zombies === 0) {
+                return sendError(ws, 'No hay zombies aquí');
+            }
+
+            if (player.inCombat) {
+                return sendError(ws, 'Ya estás en combate');
+            }
+
+            const zombieMaxHP = 50 + Math.floor(Math.random() * 30);
+            player.inCombat = {
+                zombieHP: zombieMaxHP,
+                zombieMaxHP: zombieMaxHP,
+                turno: 'player',
+                roundNumber: 1
+            };
+
+            sendSuccess(ws, {
+                type: 'combat:started',
+                zombie: {
+                    hp: zombieMaxHP,
+                    maxHP: zombieMaxHP
+                },
+                player: {
+                    hp: player.salud,
+                    maxHP: player.saludMaxima || 100
+                },
+                turno: 'player',
+                message: '🧟 ¡Un zombie te ataca! Es tu turno.'
+            });
+        }),
+
+        'combat:attack': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 15 ataques por minuto (1 cada 4s)
+            const rateLimit = rateLimiter.check(playerId, 'attack', 15, 60000);
+            if (!rateLimit.allowed) {
+                return sendError(ws, '⏱️ Demasiado rápido. Espera un momento.');
+            }
+
+            if (!player.inCombat && msg.type === 'combat:attack') {
+                return sendError(ws, 'No estás en combate. Usa el botón "Atacar Zombies" primero.');
+            }
+
+            // Iniciar combate si se usa botón 'attack' normal
+            if (!player.inCombat && msg.type === 'attack') {
+                const loc = WORLD.locations[player.locacion];
+                if (loc.zombies === 0) {
+                    return sendError(ws, 'No hay zombies aquí');
+                }
+
+                const zombieMaxHP = 50 + Math.floor(Math.random() * 30);
+                player.inCombat = {
+                    zombieHP: zombieMaxHP,
+                    zombieMaxHP: zombieMaxHP,
+                    turno: 'player',
+                    roundNumber: 1
+                };
+            }
+
+            const tipoAtaque = msg.attackType || 'melee';
+            const combat = player.inCombat;
+
+            if (combat.turno !== 'player') {
+                return sendError(ws, 'No es tu turno');
+            }
+
+            const resultado = {
+                playerAttack: {},
+                zombieAttack: {},
+                combatEnded: false,
+                playerWon: false,
+                loot: {}
+            };
+
+            // Ataque del jugador
+            let playerDamage = 0;
+            let playerCrit = false;
+
+            if (tipoAtaque === 'shoot') {
+                if (!player.inventario.armas || player.inventario.armas < 1) {
+                    return sendError(ws, 'No tienes armas');
+                }
+                player.inventario.armas -= 1;
+                playerDamage = Math.floor(20 + Math.random() * 10 + player.atributos.fuerza * 2 + player.skills.combate * 3);
+
+                if (Math.random() < 0.25 + (player.atributos.agilidad / 50)) {
+                    playerDamage *= 2;
+                    playerCrit = true;
+                }
+            } else if (tipoAtaque === 'melee') {
+                playerDamage = Math.floor(10 + Math.random() * 5 + player.atributos.fuerza * 2 + player.skills.combate * 2);
+
+                if (Math.random() < 0.15 + (player.atributos.fuerza / 50)) {
+                    playerDamage *= 1.5;
+                    playerCrit = true;
+                }
+            }
+
+            combat.zombieHP -= playerDamage;
+            resultado.playerAttack = {
+                damage: playerDamage,
+                critical: playerCrit,
+                type: tipoAtaque
+            };
+
+            // ¿Zombie muerto?
+            if (combat.zombieHP <= 0) {
+                resultado.combatEnded = true;
+                resultado.playerWon = true;
+
+                // Loot
+                if (Math.random() < 0.4) {
+                    const lootOptions = ['comida', 'medicinas', 'materiales', 'armas'];
+                    const lootItem = lootOptions[Math.floor(Math.random() * lootOptions.length)];
+                    resultado.loot[lootItem] = 1;
+                    player.inventario[lootItem] = (player.inventario[lootItem] || 0) + 1;
+                }
+
+                const loc = WORLD.locations[player.locacion];
+                loc.zombies = Math.max(0, loc.zombies - 1);
+
+                giveXP(player, 15, ws);
+                updatePlayerStats(player, 'zombies_matados', 1);
+                player.skills.combate = Math.min(10, player.skills.combate + 0.2);
+                checkAchievements(player, ws);
+
+                delete player.inCombat;
+
+                sendSuccess(ws, {
+                    type: 'combat:result',
+                    resultado,
+                    player: {
+                        hp: player.salud,
+                        maxHP: player.saludMaxima || 100,
+                        inventario: player.inventario
+                    },
+                    message: `¡Mataste al zombie! +15 XP`,
+                    zombiesRemaining: loc.zombies
+                });
+
+                broadcast({
+                    type: 'world:event',
+                    message: `⚔️ ${player.nombre} eliminó un zombie${playerCrit ? ' con golpe CRÍTICO' : ''}`,
+                    category: 'combat'
+                });
+
+                return;
+            }
+
+            // Contraataque del zombie
+            combat.turno = 'zombie';
+
+            setTimeout(() => {
+                if (!player.inCombat) return;
+
+                let zombieDamage = Math.floor(8 + Math.random() * 12);
+                let playerDodged = false;
+
+                const dodgeChance = Math.min(0.35, 0.10 + (player.atributos.agilidad / 40));
+                if (Math.random() < dodgeChance) {
+                    playerDodged = true;
+                    zombieDamage = 0;
+                }
+
+                if (!playerDodged) {
+                    const damageReduction = 1 - Math.min(0.5, player.atributos.resistencia * 0.05);
+                    zombieDamage = Math.floor(zombieDamage * damageReduction);
+                }
+
+                player.salud = Math.max(0, player.salud - zombieDamage);
+                resultado.zombieAttack = {
+                    damage: zombieDamage,
+                    dodged: playerDodged
+                };
+
+                combat.turno = 'player';
+                combat.roundNumber++;
+
+                // ¿Jugador muerto?
+                if (player.salud <= 0) {
+                    resultado.combatEnded = true;
+                    resultado.playerWon = false;
+                    delete player.inCombat;
+
+                    ws.send(JSON.stringify({
+                        type: 'combat:result',
+                        resultado,
+                        player: {
+                            hp: 0,
+                            maxHP: player.saludMaxima || 100
+                        },
+                        message: '💀 ¡El zombie te mató! GAME OVER'
+                    }));
+
+                    setTimeout(() => {
+                        player.salud = Math.floor((player.saludMaxima || 100) * 0.5);
+                        player.locacion = 'refugio';
+
+                        ws.send(JSON.stringify({
+                            type: 'player:respawn',
+                            message: 'Despertaste en el refugio...',
+                            player: {
+                                salud: player.salud,
+                                locacion: player.locacion
+                            }
+                        }));
+                    }, 3000);
+
+                    return;
+                }
+
+                // Combate continúa
+                ws.send(JSON.stringify({
+                    type: 'combat:turn_result',
+                    resultado,
+                    zombie: {
+                        hp: combat.zombieHP,
+                        maxHP: combat.zombieMaxHP
+                    },
+                    player: {
+                        hp: player.salud,
+                        maxHP: player.saludMaxima || 100
+                    },
+                    turno: 'player',
+                    roundNumber: combat.roundNumber,
+                    message: `Round ${combat.roundNumber} - Tu turno`
+                }));
+            }, 1200);
+        }),
+
+        'attack': createHandler(async (msg, ws, playerId) => {
+            // Redirect to combat:attack handler
+            msg.type = 'combat:attack';
+            await messageHandlers['combat:attack'](msg, ws, playerId);
+        }),
+
+        'combat:flee': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            if (!player.inCombat) {
+                return sendError(ws, 'No estás en combate');
+            }
+
+            const fleeChance = 0.5 + (player.atributos.agilidad / 50);
+
+            if (Math.random() < fleeChance) {
+                delete player.inCombat;
+                sendSuccess(ws, {
+                    type: 'combat:fled',
+                    success: true,
+                    message: '🏃 Lograste escapar del zombie'
+                });
+            } else {
+                const zombieDamage = Math.floor(10 + Math.random() * 15);
+                player.salud = Math.max(0, player.salud - zombieDamage);
+
+                if (player.salud <= 0) {
+                    delete player.inCombat;
+                    sendSuccess(ws, {
+                        type: 'combat:fled',
+                        success: false,
+                        died: true,
+                        message: '💀 El zombie te alcanzó y te mató'
+                    });
+
+                    setTimeout(() => {
+                        player.salud = Math.floor((player.saludMaxima || 100) * 0.5);
+                        player.locacion = 'refugio';
+                        ws.send(JSON.stringify({
+                            type: 'player:respawn',
+                            player: { salud: player.salud, locacion: player.locacion }
+                        }));
+                    }, 3000);
+                } else {
+                    sendSuccess(ws, {
+                        type: 'combat:fled',
+                        success: false,
+                        damage: zombieDamage,
+                        message: '💥 El zombie te golpeó mientras huías',
+                        player: {
+                            hp: player.salud,
+                            maxHP: player.saludMaxima || 100
+                        }
+                    });
+                }
+            }
+        }),
+
+        // ===== INTERACCIÓN CON NPCs =====
+        'talk': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            const npc = WORLD.npcs[msg.npcId];
+            if (!npc || !npc.vivo) {
+                return sendError(ws, 'NPC no disponible');
+            }
+
+            if (npc.locacion !== player.locacion && npc.locacion !== 'refugio') {
+                return sendError(ws, 'No puedes hablar con ese NPC desde aquí');
+            }
+
+            let dialogo = npc.dialogo || 'Hola...';
+            if (npc.dialogos && npc.dialogos.length > 0) {
+                dialogo = npc.dialogos[Math.floor(Math.random() * npc.dialogos.length)];
+            }
+
+            const saludos = ['Hola', 'Hey', 'Buenas', 'Qué tal'];
+            const despedidas = ['Adiós', 'Nos vemos', 'Hasta luego', 'Cuídate'];
+
+            let sonido = 'npc_charla';
+            if (saludos.some(s => dialogo.includes(s))) {
+                sonido = 'npc_saludo';
+            } else if (despedidas.some(s => dialogo.includes(s))) {
+                sonido = 'npc_despedida';
+            }
+
+            sendSuccess(ws, {
+                type: 'npc:talk',
+                npcId: msg.npcId,
+                npcName: npc.nombre,
+                dialogo: dialogo,
+                playSound: sonido
+            });
+
+            console.log(`💬 ${player.nombre} habla con ${npc.nombre}: "${dialogo}"`);
+        }),
+
+        'give': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 10 donaciones a NPCs por minuto
+            const rateLimit = rateLimiter.check(playerId, 'give', 10, 60000);
+            if (!rateLimit.allowed) {
+                const segundos = Math.ceil(rateLimit.resetIn / 1000);
+                return sendError(ws, `⏱️ Demasiadas donaciones. Espera ${segundos}s`);
+            }
+
+            const npcId = msg.npcId;
+            const recurso = msg.item || msg.recurso || msg.resource;
+            const cantidad = msg.cantidad || 1;
+
+            const npc = WORLD.npcs[npcId];
+            if (!npc || !npc.vivo) {
+                return sendError(ws, 'NPC no disponible');
+            }
+
+            if (!player.inventario[recurso] || player.inventario[recurso] < cantidad) {
+                return sendError(ws, `No tienes suficiente ${recurso}`);
+            }
+
+            player.inventario[recurso] -= cantidad;
+
+            if (recurso === 'comida') {
+                npc.hambre = Math.max(0, npc.hambre - 20 * cantidad);
+                npc.moral = Math.min(100, npc.moral + 10);
+            } else if (recurso === 'medicinas') {
+                npc.salud = Math.min(100, npc.salud + 25 * cantidad);
+                npc.moral = Math.min(100, npc.moral + 15);
+            } else {
+                npc.moral = Math.min(100, npc.moral + 5);
+            }
+
+            giveXP(player, 20, ws);
+            player.stats.reputacion = (player.stats.reputacion || 0) + 5;
+
+            const respuestas = [
+                '¡Muchas gracias! Esto me ayuda mucho.',
+                '¡Eres muy amable! Gracias.',
+                'No olvidaré esto. Gracias.',
+                'Esto significa mucho para mí. Gracias.'
+            ];
+
+            sendSuccess(ws, {
+                type: 'npc:talk',
+                npcId: npcId,
+                npcName: npc.nombre,
+                dialogo: respuestas[Math.floor(Math.random() * respuestas.length)],
+                playSound: 'npc_charla',
+                inventario: player.inventario,
+                npcState: npc
+            });
+
+            console.log(`💝 ${player.nombre} dio ${cantidad} ${recurso} a ${npc.nombre}`);
+        }),
+
+        'giveResource': createHandler(async (msg, ws, playerId) => {
+            msg.type = 'give';
+            await messageHandlers['give'](msg, ws, playerId);
+        }),
+
+        'npc:give_resource': createHandler(async (msg, ws, playerId) => {
+            msg.type = 'give';
+            await messageHandlers['give'](msg, ws, playerId);
+        }),
+
+        // ===== CRAFTING =====
+        'craft': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 10 crafteos por minuto
+            const rateLimit = rateLimiter.check(playerId, 'craft', 10, 60000);
+            if (!rateLimit.allowed) {
+                const segundos = Math.ceil(rateLimit.resetIn / 1000);
+                return sendError(ws, `⏱️ Demasiado rápido. Espera ${segundos}s`);
+            }
+
+            if (player.cooldowns.craft && Date.now() < player.cooldowns.craft) {
+                const segundos = Math.ceil((player.cooldowns.craft - Date.now()) / 1000);
+                return sendError(ws, `Espera ${segundos}s antes de craftear de nuevo`);
+            }
+
+            const recipe = WORLD.craftingRecipes[msg.item];
+            if (!recipe) {
+                return sendError(ws, 'Receta inválida');
+            }
+
+            // Verificar materiales
+            let canCraft = true;
+            const materialRequirements = {};
+            Object.keys(recipe).forEach(mat => {
+                if (mat === 'resultado') return;
+                materialRequirements[mat] = applyClassBonus(player, 'craft_cost', recipe[mat]);
+                if (!player.inventario[mat] || player.inventario[mat] < materialRequirements[mat]) {
+                    canCraft = false;
+                }
+            });
+
+            if (!canCraft) {
+                return sendError(ws, 'No tienes suficientes materiales');
+            }
+
+            // Consumir materiales
+            Object.keys(materialRequirements).forEach(mat => {
+                player.inventario[mat] -= materialRequirements[mat];
+            });
+
+            // Crear item
+            const resultado = recipe.resultado;
+            if (resultado.tipo === 'defensa') {
+                WORLD.locations.refugio.defensas += resultado.cantidad;
+                sendSuccess(ws, {
+                    type: 'craft:success',
+                    item: msg.item,
+                    defensas: WORLD.locations.refugio.defensas,
+                    inventario: player.inventario
+                });
+            } else {
+                player.inventario[resultado.tipo] = (player.inventario[resultado.tipo] || 0) + resultado.cantidad;
+                sendSuccess(ws, {
+                    type: 'craft:success',
+                    item: msg.item,
+                    inventario: player.inventario
+                });
+            }
+
+            player.skills.mecanica = Math.min(10, player.skills.mecanica + 0.2);
+            updatePlayerStats(player, 'items_crafteados', 1);
+            const xpGained = applyClassBonus(player, 'xp', 15);
+            giveXP(player, xpGained, ws);
+            checkAchievements(player, ws);
+
+            player.cooldowns.craft = Date.now() + 2000;
+        }),
+
+        // ===== QUEST SYSTEM =====
+        'getActiveQuests': createHandler(async (msg, ws, playerId) => {
+            try {
+                // Intentar obtener del caché
+                const cacheKey = 'activeQuests';
+                let quests = cache.get(cacheKey);
+
+                if (!quests) {
+                    // No hay caché, obtener de la fuente
+                    const dynamicQuests = await import('./world/dynamicQuests.js');
+                    quests = dynamicQuests.default.getActiveQuests() || [];
+
+                    // Cachear por 5 segundos
+                    cache.set(cacheKey, quests, 5000);
+                }
+
+                sendSuccess(ws, {
+                    type: 'quests:list',
+                    quests
+                });
+            } catch (error) {
+                console.error('Error obteniendo misiones:', error);
+                sendSuccess(ws, {
+                    type: 'quests:list',
+                    quests: []
+                });
+            }
+        }),
+
+        'acceptQuest': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                const dynamicQuests = await import('./world/dynamicQuests.js');
+                const quest = dynamicQuests.default.getQuestById(msg.questId);
+
+                if (!quest) {
+                    return sendError(ws, 'Misión no encontrada');
+                }
+
+                if (quest.estado !== 'disponible') {
+                    return sendError(ws, 'Misión no disponible');
+                }
+
+                dynamicQuests.default.acceptQuest(msg.questId, player.id);
+
+                // Invalidar caché de quests
+                cache.invalidate('activeQuests');
+
+                sendSuccess(ws, {
+                    type: 'quest:accepted',
+                    quest: dynamicQuests.default.getQuestById(msg.questId)
+                });
+            } catch (error) {
+                console.error('Error aceptando misión:', error);
+                sendError(ws, 'No se pudo aceptar la misión');
+            }
+        }),
+
+        'completeQuest': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                const dynamicQuests = await import('./world/dynamicQuests.js');
+                const success = msg.success !== undefined ? msg.success : true;
+                const result = dynamicQuests.default.completeQuest(msg.questId, player.id, success);
+
+                if (!result.success) {
+                    return sendError(ws, result.message);
+                }
+
+                // Aplicar recompensas
+                if (result.rewards) {
+                    if (result.rewards.xp) {
+                        player.xp = (player.xp || 0) + result.rewards.xp;
+                    }
+                    if (result.rewards.reputacion) {
+                        player.reputacion = (player.reputacion || 0) + result.rewards.reputacion;
+                    }
+                    if (result.rewards.oro) {
+                        player.inventario.oro = (player.inventario.oro || 0) + result.rewards.oro;
+                    }
+                    guardarPlayer(player.id);
+                }
+
+                // Invalidar caché de quests
+                cache.invalidate('activeQuests');
+
+                sendSuccess(ws, {
+                    type: 'quest:completed',
+                    result,
+                    player: {
+                        xp: player.xp,
+                        reputacion: player.reputacion,
+                        inventario: player.inventario
+                    }
+                });
+            } catch (error) {
+                console.error('Error completando misión:', error);
+                sendError(ws, 'No se pudo completar la misión');
+            }
+        }),
+
+        // ===== NARRATIVE SYSTEM =====
+        'narrative:respond': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            if (!WORLD.activeNarrativeEvent) {
+                return sendError(ws, 'No hay evento narrativo activo');
+            }
+
+            const currentEvent = WORLD.activeNarrativeEvent;
+            const opcion = currentEvent.opciones[msg.opcionIndex];
+
+            if (!opcion) {
+                return sendError(ws, 'Opción inválida');
+            }
+
+            let resultado = `${currentEvent.nombre}: Elegiste "${opcion.texto}". `;
+
+            // Aplicar costo
+            if (opcion.costo) {
+                let canAfford = true;
+                Object.entries(opcion.costo).forEach(([recurso, cant]) => {
+                    if (!player.inventario[recurso] || player.inventario[recurso] < cant) {
+                        canAfford = false;
+                    }
+                });
+
+                if (!canAfford) {
+                    return sendSuccess(ws, {
+                        type: 'narrative:failed',
+                        message: 'No tienes los recursos necesarios.'
+                    });
+                }
+
+                Object.entries(opcion.costo).forEach(([recurso, cant]) => {
+                    player.inventario[recurso] -= cant;
+                });
+            }
+
+            // Aplicar riesgo
+            if (opcion.riesgo && Math.random() < opcion.riesgo) {
+                resultado += '¡Salió mal! Perdiste recursos y salud.';
+                player.salud = Math.max(10, player.salud - 30);
+            } else {
+                // Aplicar recompensa
+                if (opcion.recompensa) {
+                    Object.entries(opcion.recompensa).forEach(([key, value]) => {
+                        if (key === 'defensas') {
+                            WORLD.locations.refugio.defensas += value;
+                        } else if (key === 'moral') {
+                            player.moral = Math.max(0, Math.min(100, (player.moral || 50) + value));
+                        } else if (key === 'npc_nuevo') {
+                            resultado += ` ¡${value} se unió al refugio!`;
+                        } else if (key === 'refugio_mejorado') {
+                            resultado += ' ¡Encontraron un refugio seguro definitivo!';
+                        } else if (key === 'recursos_extra') {
+                            resultado += ' ¡Establecieron ruta comercial permanente!';
+                        } else {
+                            player.inventario[key] = (player.inventario[key] || 0) + value;
+                        }
+                    });
+                }
+                resultado += ' ¡Éxito!';
+            }
+
+            giveXP(player, 50, ws);
+
+            sendSuccess(ws, {
+                type: 'narrative:completed',
+                resultado,
+                inventario: player.inventario,
+                defensas: WORLD.locations.refugio.defensas
+            });
+
+            // Avanzar a siguiente parte
+            if (opcion.siguiente) {
+                const nextEvent = WORLD.narrativeChains[opcion.siguiente];
+                if (nextEvent) {
+                    WORLD.activeNarrativeEvent = nextEvent;
+                    setTimeout(() => {
+                        broadcast({
+                            type: 'narrative:event',
+                            event: nextEvent
+                        });
+                        console.log(`📖 EVENTO CONTINÚA: ${nextEvent.nombre} (Parte ${nextEvent.parte})`);
+                    }, 5000);
+                } else {
+                    WORLD.activeNarrativeEvent = null;
+                }
+            } else {
+                WORLD.activeNarrativeEvent = null;
+                console.log(`📖 Evento narrativo completado`);
+            }
+        }),
+
+        // ===== NARRATIVE MISSIONS =====
+        'getNarrativeMissions': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                // Cachear por nivel de jugador
+                const cacheKey = `narrativeMissions:${player.nivel || 1}`;
+                let missions = cache.get(cacheKey);
+
+                if (!missions) {
+                    const narrativeMissions = await import('./systems/narrativeMissions.js');
+                    missions = narrativeMissions.default.getAvailableMissions(player.nivel || 1);
+
+                    // Cachear por 10 segundos
+                    cache.set(cacheKey, missions, 10000);
+                }
+
+                sendSuccess(ws, {
+                    type: 'narrative:missions',
+                    missions
+                });
+            } catch (error) {
+                console.error('Error obteniendo misiones narrativas:', error);
+                sendError(ws, 'Error cargando misiones');
+            }
+        }),
+
+        'startNarrativeMission': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                const narrativeMissions = await import('./systems/narrativeMissions.js');
+                const result = narrativeMissions.default.startMission(
+                    msg.templateId,
+                    player.id,
+                    msg.isGroup,
+                    msg.partyMembers || []
+                );
+
+                if (!result.success) {
+                    return sendError(ws, result.message);
+                }
+
+                // Notificar a todos los miembros del grupo
+                if (msg.isGroup && msg.partyMembers) {
+                    msg.partyMembers.forEach(memberId => {
+                        const memberWs = Array.from(connections.values()).find(c => c.playerId === memberId);
+                        if (memberWs) {
+                            memberWs.send(JSON.stringify({
+                                type: 'narrative:started',
+                                mission: result.mission
+                            }));
+                        }
+                    });
+                }
+
+                sendSuccess(ws, {
+                    type: 'narrative:started',
+                    mission: result.mission
+                });
+            } catch (error) {
+                console.error('Error iniciando misión narrativa:', error);
+                sendError(ws, 'Error al iniciar misión');
+            }
+        }),
+
+        'narrativeChoice': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                const narrativeMissions = await import('./systems/narrativeMissions.js');
+                const result = narrativeMissions.default.makeChoice(msg.missionId, player.id, msg.choiceId);
+
+                if (!result.success) {
+                    return sendError(ws, result.message);
+                }
+
+                if (result.completed) {
+                    // Aplicar recompensas
+                    if (result.rewards) {
+                        player.xp = (player.xp || 0) + result.rewards.xp;
+                        player.salud = Math.min(100, player.salud + result.rewards.health);
+
+                        Object.entries(result.rewards.items || {}).forEach(([item, qty]) => {
+                            player.inventario[item] = (player.inventario[item] || 0) + qty;
+                        });
+
+                        guardarPlayer(player.id);
+                    }
+
+                    sendSuccess(ws, {
+                        type: 'narrative:completed',
+                        rewards: result.rewards,
+                        summary: result.summary
+                    });
+                } else {
+                    sendSuccess(ws, {
+                        type: 'narrative:nextStep',
+                        step: result.nextStep,
+                        effects: result.effects
+                    });
+                }
+            } catch (error) {
+                console.error('Error en elección narrativa:', error);
+                sendError(ws, 'Error procesando elección');
+            }
+        }),
+
+        // ===== SOCIAL SYSTEM =====
+        'donate': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 10 donaciones por minuto
+            const rateLimit = rateLimiter.check(playerId, 'donate', 10, 60000);
+            if (!rateLimit.allowed) {
+                const segundos = Math.ceil(rateLimit.resetIn / 1000);
+                return sendError(ws, `⏱️ Demasiadas donaciones. Espera ${segundos}s`);
+            }
+
+            const item = msg.item;
+            const cantidad = msg.cantidad || 1;
+
+            if (!player.inventario[item] || player.inventario[item] < cantidad) {
+                return sendError(ws, 'No tienes suficiente');
+            }
+
+            player.inventario[item] -= cantidad;
+
+            if (!WORLD.locations.refugio.recursos[item]) {
+                WORLD.locations.refugio.recursos[item] = 0;
+            }
+            WORLD.locations.refugio.recursos[item] += cantidad;
+
+            const xpGain = cantidad * 5;
+            player.xp += xpGain;
+
+            sendSuccess(ws, {
+                type: 'donate:success',
+                item,
+                cantidad,
+                inventario: player.inventario,
+                xpGain
+            });
+
+            broadcast({
+                type: 'world:event',
+                message: `💝 ${player.nombre} donó ${cantidad} ${item} al refugio`,
+                category: 'resource'
+            });
+
+            broadcast({
+                type: 'refugio:recursos',
+                recursos: WORLD.locations.refugio.recursos
+            });
+        }),
+
+        'trade': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 5 comercios por minuto
+            const rateLimit = rateLimiter.check(playerId, 'trade', 5, 60000);
+            if (!rateLimit.allowed) {
+                const segundos = Math.ceil(rateLimit.resetIn / 1000);
+                return sendError(ws, `⏱️ Demasiados comercios. Espera ${segundos}s`);
+            }
+
+            const npc = WORLD.npcs.comerciante;
+            if (!npc || !npc.vivo) {
+                return sendError(ws, 'Jorge no está disponible');
+            }
+
+            const { ofreces, pides } = msg;
+
+            if (!player.inventario[ofreces.item] || player.inventario[ofreces.item] < ofreces.cant) {
+                return sendError(ws, 'No tienes suficiente para comerciar');
+            }
+
+            if (!npc.inventario[pides.item] || npc.inventario[pides.item] < pides.cant) {
+                return sendError(ws, 'Jorge no tiene eso');
+            }
+
+            // Realizar intercambio
+            player.inventario[ofreces.item] -= ofreces.cant;
+            player.inventario[pides.item] = (player.inventario[pides.item] || 0) + pides.cant;
+            npc.inventario[ofreces.item] = (npc.inventario[ofreces.item] || 0) + ofreces.cant;
+            npc.inventario[pides.item] -= pides.cant;
+
+            sendSuccess(ws, {
+                type: 'trade:success',
+                message: `Intercambiaste ${ofreces.cant} ${ofreces.item} por ${pides.cant} ${pides.item}`,
+                inventario: player.inventario,
+                comercianteInventario: npc.inventario
+            });
+        }),
+
+        'chat': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Rate limiting: max 20 mensajes por minuto
+            const rateLimit = rateLimiter.check(playerId, 'chat', 20, 60000);
+            if (!rateLimit.allowed) {
+                return sendError(ws, '⏱️ Demasiados mensajes. Espera un momento.');
+            }
+
+            const mensaje = msg.mensaje.trim();
+
+            // Comandos especiales
+            if (mensaje.startsWith('/')) {
+                const comando = mensaje.toLowerCase().split(' ')[0];
+
+                if (comando === '/help') {
+                    return sendSuccess(ws, {
+                        type: 'chat:system',
+                        mensaje: '📋 Comandos disponibles:\n/help - Muestra esta ayuda\n/stats - Estadísticas del servidor\n/online - Jugadores conectados\n/loc - Tu ubicación actual\n/skills - Tus habilidades'
+                    });
+                }
+
+                if (comando === '/stats') {
+                    const totalZombies = Object.values(WORLD.locations).reduce((sum, loc) => sum + loc.zombies, 0);
+                    const npcsVivos = Object.values(WORLD.npcs).filter(npc => npc.vivo).length;
+                    return sendSuccess(ws, {
+                        type: 'chat:system',
+                        mensaje: `📊 Estadísticas:\n🧟 Zombies: ${totalZombies}\n👥 NPCs vivos: ${npcsVivos}\n🛡️ Defensas refugio: ${WORLD.locations.refugio.defensas}\n🌍 Jugadores: ${connections.size}`
+                    });
+                }
+
+                if (comando === '/online') {
+                    const onlinePlayers = getConnectedPlayers();
+                    const lista = onlinePlayers.map(p => `${p.nombre} (Nv.${p.nivel}) - ${WORLD.locations[p.locacion]?.nombre || p.locacion}`).join('\n');
+                    return sendSuccess(ws, {
+                        type: 'chat:system',
+                        mensaje: `👥 Jugadores conectados (${onlinePlayers.length}):\n${lista}`
+                    });
+                }
+
+                if (comando === '/loc') {
+                    const loc = WORLD.locations[player.locacion];
+                    return sendSuccess(ws, {
+                        type: 'chat:system',
+                        mensaje: `📍 Estás en: ${loc.nombre}\n🧟 Zombies: ${loc.zombies}\n📦 Recursos disponibles: ${Object.entries(loc.recursos).map(([k, v]) => `${k}:${v}`).join(', ')}`
+                    });
+                }
+
+                if (comando === '/skills') {
+                    const skills = Object.entries(player.skills || {}).map(([k, v]) => `${k}: ${v.toFixed(1)}`).join(', ');
+                    return sendSuccess(ws, {
+                        type: 'chat:system',
+                        mensaje: `🎯 Tus habilidades:\n${skills}`
+                    });
+                }
+
+                return sendSuccess(ws, {
+                    type: 'chat:system',
+                    mensaje: '❌ Comando desconocido. Usa /help para ver comandos disponibles.'
+                });
+            }
+
+            // Mensaje normal de chat
+            const chatMessage = {
+                type: 'chat:message',
+                playerId: player.id,
+                nombre: player.nombre,
+                mensaje: mensaje,
+                timestamp: Date.now()
+            };
+
+            broadcast(chatMessage);
+        }),
+
+        // ===== ADDITIONAL NARRATIVE HANDLERS =====
+        'narrativeVote': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                const narrativeMissions = await import('./systems/narrativeMissions.js');
+                const result = narrativeMissions.default.vote(msg.missionId, player.id, msg.choiceId);
+
+                if (!result.success) {
+                    return sendError(ws, result.message);
+                }
+
+                sendSuccess(ws, {
+                    type: 'narrative:voted',
+                    votesCount: result.votesCount,
+                    totalMembers: result.totalMembers
+                });
+            } catch (error) {
+                console.error('Error votando:', error);
+                sendError(ws, 'Error al votar');
+            }
+        }),
+
+        'getActiveMission': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            try {
+                // Cachear misión activa por 5 segundos
+                const cacheKey = `activeMission:${playerId}`;
+                let activeMission = cache.get(cacheKey);
+
+                if (activeMission === null) {
+                    const narrativeMissions = await import('./systems/narrativeMissions.js');
+                    activeMission = narrativeMissions.default.getActiveMission(player.id);
+                    cache.set(cacheKey, activeMission, 5000);
+                }
+
+                sendSuccess(ws, {
+                    type: 'narrative:active',
+                    mission: activeMission
+                });
+            } catch (error) {
+                console.error('Error obteniendo misión activa:', error);
+                sendError(ws, 'Error');
+            }
+        }),
+
+        // ===== WORLD EVENTS =====
+        'getWorldEvents': createHandler(async (msg, ws, playerId) => {
+            try {
+                const limit = msg.limit || 30;
+                const cacheKey = `worldEvents:${limit}`;
+                let events = cache.get(cacheKey);
+
+                if (!events) {
+                    const narrativeEngine = await import('./world/narrativeEngine.js');
+                    events = narrativeEngine.default.getRecentEvents(limit);
+
+                    // Cachear por 3 segundos
+                    cache.set(cacheKey, events, 3000);
+                }
+
+                sendSuccess(ws, {
+                    type: 'world:events',
+                    events: events.reverse()
+                });
+            } catch (error) {
+                console.error('Error obteniendo eventos del mundo:', error);
+                sendError(ws, 'No se pudieron obtener los eventos del mundo');
+            }
+        }),
+
+        'event:respond': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            const evento = WORLD.activeEvents.find(e => e.id === msg.eventId);
+            if (!evento) {
+                return sendError(ws, 'Evento no disponible');
+            }
+
+            const opcion = evento.opciones[msg.opcionIndex];
+
+            // Verificar costo
+            let canAfford = true;
+            Object.keys(opcion.costo).forEach(recurso => {
+                if (recurso === 'moral' || recurso === 'defensas') return;
+                const total = player.inventario[recurso] || 0;
+                if (total < opcion.costo[recurso]) {
+                    canAfford = false;
+                }
+            });
+
+            if (!canAfford) {
+                return sendError(ws, 'No tienes suficientes recursos');
+            }
+
+            // Aplicar costo
+            Object.keys(opcion.costo).forEach(recurso => {
+                if (recurso === 'moral' || recurso === 'defensas') return;
+                player.inventario[recurso] -= opcion.costo[recurso];
+            });
+
+            let resultado = `Elegiste: ${opcion.texto}. `;
+
+            // Riesgo
+            if (Math.random() < opcion.riesgo) {
+                resultado += '¡Algo salió MAL! ';
+                player.salud -= 20;
+                broadcast({
+                    type: 'event:bad_outcome',
+                    message: `${player.nombre} tomó una decisión arriesgada y salió mal...`
+                });
+            } else {
+                // Aplicar recompensas
+                Object.keys(opcion.recompensa).forEach(recurso => {
+                    if (recurso === 'moral') {
+                        Object.values(WORLD.npcs).forEach(n => {
+                            if (n.vivo) n.moral = Math.max(0, Math.min(100, n.moral + opcion.recompensa[recurso]));
+                        });
+                    } else if (recurso === 'defensas') {
+                        WORLD.locations.refugio.defensas += opcion.recompensa[recurso];
+                    } else {
+                        player.inventario[recurso] = (player.inventario[recurso] || 0) + opcion.recompensa[recurso];
+                    }
+                });
+                resultado += 'Todo salió bien.';
+
+                player.xp += 25;
+                ws.send(JSON.stringify({
+                    type: 'xp:gained',
+                    amount: 25,
+                    xp: player.xp,
+                    xpMax: player.xpParaSiguienteNivel
+                }));
+
+                if (player.xp >= player.xpParaSiguienteNivel) {
+                    player.nivel++;
+                    player.xp = 0;
+                    player.xpParaSiguienteNivel = Math.floor(player.xpParaSiguienteNivel * 1.5);
+                    ws.send(JSON.stringify({
+                        type: 'level:up',
+                        nivel: player.nivel,
+                        xpMax: player.xpParaSiguienteNivel
+                    }));
+                }
+
+                // Agregar NPC si es evento de refugiados
+                if (evento.id === 'refugiados' && msg.opcionIndex === 0) {
+                    const nombres = ['Ana', 'Pedro', 'Luis', 'Carmen', 'Miguel', 'Sofia', 'Carlos', 'Elena'];
+                    const apellidos = ['García', 'López', 'Martínez', 'Rodríguez', 'González', 'Fernández'];
+                    const nombreCompleto = `${nombres[Math.floor(Math.random() * nombres.length)]} ${apellidos[Math.floor(Math.random() * apellidos.length)]}`;
+
+                    const npcId = `refugiado_${Date.now()}`;
+                    WORLD.npcs[npcId] = {
+                        id: npcId,
+                        nombre: nombreCompleto,
+                        rol: 'refugiado',
+                        locacion: 'refugio',
+                        salud: 80,
+                        hambre: 60,
+                        moral: 70,
+                        vivo: true,
+                        estado: 'activo',
+                        enMision: false,
+                        dialogo: `Gracias por aceptarnos, ${player.nombre}. No te defraudaremos.`,
+                        dialogos: [
+                            'Venimos de muy lejos...',
+                            'No teníamos a dónde ir.',
+                            'Ayudaremos en lo que podamos.',
+                            'Mi familia está a salvo gracias a ti.'
+                        ]
+                    };
+
+                    broadcast({
+                        type: 'world:event',
+                        message: `👥 ${nombreCompleto} se unió al refugio`,
+                        category: 'npc'
+                    });
+                }
+            }
+
+            WORLD.activeEvents = WORLD.activeEvents.filter(e => e.id !== msg.eventId);
+
+            sendSuccess(ws, {
+                type: 'event:resolved',
+                resultado,
+                inventario: player.inventario
+            });
+
+            broadcast({
+                type: 'event:resolved_broadcast',
+                playerId,
+                eventId: msg.eventId
+            }, playerId);
+        }),
+
+        // ===== MESSAGING =====
+        'dm': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            const targetPlayer = WORLD.players[msg.targetId];
+            if (!targetPlayer) {
+                return sendError(ws, 'Jugador no encontrado');
+            }
+
+            const targetWs = Array.from(connections.entries())
+                .find(([ws, id]) => id === msg.targetId)?.[0];
+
+            if (!targetWs) {
+                return sendError(ws, 'Jugador no está conectado');
+            }
+
+            targetWs.send(JSON.stringify({
+                type: 'dm:received',
+                from: playerId,
+                fromName: player.nombre,
+                message: msg.mensaje,
+                timestamp: Date.now()
+            }));
+
+            sendSuccess(ws, {
+                type: 'dm:sent',
+                to: msg.targetId,
+                message: msg.mensaje
+            });
+
+            console.log(`💌 DM: ${player.nombre} → ${targetPlayer.nombre}: ${msg.mensaje}`);
+        }),
+
+        // ===== COOPERATIVE QUESTS =====
+        'quest:vote': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            if (!WORLD.questCooperativa.activa) {
+                return sendError(ws, 'No hay quest activa');
+            }
+
+            if (!WORLD.questCooperativa.opciones.includes(msg.opcion)) {
+                return sendError(ws, 'Opción inválida');
+            }
+
+            // Remover voto anterior
+            Object.keys(WORLD.questCooperativa.votos).forEach(opt => {
+                WORLD.questCooperativa.votos[opt] = WORLD.questCooperativa.votos[opt].filter(id => id !== playerId);
+            });
+
+            // Agregar nuevo voto
+            if (!WORLD.questCooperativa.votos[msg.opcion]) {
+                WORLD.questCooperativa.votos[msg.opcion] = [];
+            }
+            WORLD.questCooperativa.votos[msg.opcion].push(playerId);
+
+            sendSuccess(ws, {
+                type: 'quest:voted',
+                opcion: msg.opcion,
+                message: `Votaste por: ${msg.opcion}`
+            });
+
+            broadcast({
+                type: 'quest:votes_update',
+                votos: WORLD.questCooperativa.votos
+            });
+        }),
+
+        'mission:complete': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            const mission = WORLD.activeMissions.find(m => m.id === msg.missionId);
+            if (!mission) {
+                return sendError(ws, 'Misión no encontrada');
+            }
+
+            if (mission.completedBy.includes(playerId)) {
+                return sendError(ws, 'Ya completaste esta misión');
+            }
+
+            mission.completedBy.push(playerId);
+
+            // Aplicar recompensas
+            if (mission.rewards) {
+                player.xp = (player.xp || 0) + mission.rewards.xp;
+                Object.entries(mission.rewards.items || {}).forEach(([item, qty]) => {
+                    player.inventario[item] = (player.inventario[item] || 0) + qty;
+                });
+            }
+
+            sendSuccess(ws, {
+                type: 'mission:completed',
+                mission,
+                rewards: mission.rewards,
+                player: {
+                    xp: player.xp,
+                    inventario: player.inventario
+                }
+            });
+
+            broadcast({
+                type: 'world:event',
+                message: `✅ ${player.nombre} completó la misión: ${mission.title}`,
+                category: 'mission'
+            });
+        }),
+
+        // ===== ADMIN & DEBUGGING =====
+        'admin:getMetrics': createHandler(async (msg, ws, playerId) => {
+            const player = WORLD.players[playerId];
+            if (!player) return sendError(ws, 'Jugador no encontrado');
+
+            // Solo admin puede ver métricas (puedes agregar un flag isAdmin al jugador)
+            // Por ahora lo dejamos abierto para testing
+
+            const report = getMetricsReport();
+
+            sendSuccess(ws, {
+                type: 'admin:metrics',
+                metrics: report,
+                totalHandlers: Object.keys(handlerMetrics).length,
+                timestamp: Date.now()
+            });
+
+            console.log(`📊 Métricas solicitadas por ${player.nombre}`);
+        }),
+
+        // ===== WORLD SIMULATION =====
+        'getIntenseRelationships': createHandler(async (msg, ws, playerId) => {
+            try {
+                const npcRelationships = await import('./world/npcRelations.js');
+                const minIntensity = msg.minIntensity || 5;
+                const relationships = npcRelationships.default.getIntenseRelationships(minIntensity);
+
+                sendSuccess(ws, {
+                    type: 'world:relationships',
+                    relationships
+                });
+            } catch (error) {
+                console.error('Error obteniendo relaciones:', error);
+                sendError(ws, 'No se pudieron obtener las relaciones');
+            }
+        }),
+
+        'getWorldState': createHandler(async (msg, ws, playerId) => {
+            try {
+                const worldSimulation = await import('./world/simulation.js');
+                const state = worldSimulation.default.getWorldState() || {
+                    tick: 0,
+                    npcCount: 0,
+                    activeEvents: 0,
+                    narrativeStats: { romances: 0, conflictos: 0, dramas: 0, actividades: 0 },
+                    aiStats: { npcsWithMemories: 0, totalMemories: 0, activeGoals: 0 }
+                };
+
+                sendSuccess(ws, {
+                    type: 'world:fullState',
+                    state
+                });
+            } catch (error) {
+                console.error('Error obteniendo estado del mundo:', error);
+                // Enviar estado vacío en lugar de error
+                sendSuccess(ws, {
+                    type: 'world:fullState',
+                    state: {
+                        tick: 0,
+                        npcCount: 0,
+                        activeEvents: 0,
+                        narrativeStats: { romances: 0, conflictos: 0, dramas: 0, actividades: 0 },
+                        aiStats: { npcsWithMemories: 0, totalMemories: 0, activeGoals: 0 }
+                    }
+                });
+            }
+        })
+    };
+
+    // Función central de dispatch
+    const handleMessage = async (msg, ws, playerId) => {
+        const handler = messageHandlers[msg.type];
+        if (handler) {
+            await handler(msg, ws, playerId);
+            return true; // Handler encontrado
+        }
+        return false; // No encontrado, usar sistema legacy
+    };
+
     ws.on('message', async (data) => {
         const msg = JSON.parse(data);
+
+        // 🆕 Intentar nuevo sistema primero
+        const handled = await handleMessage(msg, ws, playerId);
+        if (handled) return;
+
+        // ⚠️ SISTEMA LEGACY (ir migrando handlers arriba progresivamente)
 
         // LOGIN
         if (msg.type === 'login') {
@@ -2497,45 +4874,110 @@ wss.on('connection', (ws) => {
 
             // Verificar si el jugador existe en memoria
             if (!WORLD.players[playerId]) {
-                console.log(`⚠️ Jugador ${playerId} no existe en memoria. Creando jugador temporal...`);
-                
-                // Crear jugador con datos básicos
-                WORLD.players[playerId] = {
-                    id: playerId,
-                    nombre: playerId.split('_')[1] || 'Desconocido',
-                    salud: 100,
-                    hambre: 50,
-                    locacion: 'refugio',
-                    inventario: {
-                        comida: 5,
-                        medicinas: 2,
-                        armas: 1,
-                        materiales: 3
-                    },
-                    stats: {
-                        zombiesKilled: 0,
-                        itemsFound: 0,
-                        daysSurvived: 0,
-                        missionsCompleted: 0,
-                        travels: 0
-                    },
-                    nivel: 1,
-                    xp: 0,
-                    xpParaSiguienteNivel: 100,
-                    skills: {
-                        combate: 0,
-                        supervivencia: 0,
-                        sigilo: 0,
-                        medicina: 0
-                    },
-                    clase: 'Superviviente',
-                    cooldowns: {
-                        scavenge: 0,
-                        attack: 0,
-                        rest: 0,
-                        trade: 0
+                console.log(`⚠️ Jugador ${playerId} no existe en memoria. Intentando cargar de DB...`);
+
+                // Intentar extraer personajeId del playerId (formato: player_123)
+                const personajeIdMatch = playerId.match(/^player_(\d+)$/);
+
+                if (personajeIdMatch) {
+                    const personajeId = parseInt(personajeIdMatch[1]);
+                    const personaje = survivalDB.obtenerPersonaje(personajeId);
+
+                    if (personaje) {
+                        // Cargar personaje de la DB
+                        console.log(`✅ Cargando personaje ${personaje.nombre} de la DB`);
+                        WORLD.players[playerId] = {
+                            id: playerId,
+                            dbId: personajeId,
+                            nombre: personaje.nombre,
+                            clase: personaje.clase,
+                            nivel: personaje.nivel,
+                            xp: personaje.xp,
+                            xpParaSiguienteNivel: personaje.xp_siguiente_nivel,
+                            salud: personaje.salud,
+                            hambre: personaje.hambre,
+                            locacion: personaje.locacion,
+                            currentSubLocation: 'plaza', // 🏘️ Ubicación inicial en el refugio
+                            inventario: personaje.inventario,
+                            skills: personaje.skills,
+                            avatar: personaje.avatar,
+                            color: personaje.color,
+                            atributos: {
+                                fuerza: personaje.fuerza,
+                                resistencia: personaje.resistencia,
+                                agilidad: personaje.agilidad,
+                                inteligencia: personaje.inteligencia
+                            },
+                            cooldowns: {
+                                scavenge: 0,
+                                craft: 0,
+                                shoot: 0
+                            },
+                            stats: {
+                                zombies_matados: 0,
+                                tanques_matados: 0,
+                                items_crafteados: 0,
+                                comercios_completados: 0,
+                                locaciones_visitadas: 1,
+                                dias_sobrevividos: 0,
+                                recursos_totales: 0,
+                                miembros_grupo: 1,
+                                mejoras_completadas: 0,
+                                npcs_salvados: 0
+                            },
+                            achievements: {},
+                            visitedLocations: new Set([personaje.locacion]),
+                            groupId: null,
+                            equipedItems: {
+                                arma: null,
+                                armadura: null,
+                                accesorio: null
+                            }
+                        };
+                    } else {
+                        console.log(`❌ No se encontró personaje con ID ${personajeId} en DB. Creando temporal...`);
+                        // Crear jugador temporal básico
+                        WORLD.players[playerId] = {
+                            id: playerId,
+                            nombre: 'Superviviente',
+                            salud: 100,
+                            hambre: 50,
+                            locacion: 'refugio',
+                            currentSubLocation: 'plaza', // 🏘️ Plaza Central es el default
+                            inventario: {
+                                comida: 5,
+                                medicinas: 2,
+                                armas: 1,
+                                materiales: 3
+                            },
+                            stats: {
+                                zombiesKilled: 0,
+                                itemsFound: 0,
+                                daysSurvived: 0,
+                                missionsCompleted: 0,
+                                travels: 0
+                            },
+                            nivel: 1,
+                            xp: 0,
+                            xpParaSiguienteNivel: 100,
+                            skills: {
+                                combate: 0,
+                                supervivencia: 0,
+                                sigilo: 0,
+                                medicina: 0
+                            },
+                            clase: 'Superviviente',
+                            cooldowns: {
+                                scavenge: 0,
+                                attack: 0,
+                                rest: 0,
+                                trade: 0
+                            }
+                        };
                     }
-                };
+                } else {
+                    console.log(`❌ PlayerId ${playerId} no tiene formato válido (esperado: player_123)`);
+                }
             }
 
             ws.send(JSON.stringify({
@@ -2551,6 +4993,9 @@ wss.on('connection', (ws) => {
 
             // Verificar que el jugador existe en WORLD.players
             if (WORLD.players[playerId]) {
+                console.log(`✅ Jugador ${WORLD.players[playerId].nombre} logueado correctamente`);
+                console.log(`📊 Jugadores conectados: ${connections.size}`);
+
                 broadcast({
                     type: 'player:joined',
                     playerId,
@@ -2573,6 +5018,8 @@ wss.on('connection', (ws) => {
                         nivel: WORLD.players[pid].nivel
                     }));
 
+                console.log(`📋 Lista de jugadores a enviar (${connectedPlayers.length}):`, connectedPlayers.map(p => p.nombre).join(', '));
+
                 // Enviar lista al jugador que se conecta
                 ws.send(JSON.stringify({
                     type: 'players:list',
@@ -2590,13 +5037,15 @@ wss.on('connection', (ws) => {
         }
 
         // PING (mantener conexión activa)
-        if (msg.type === 'ping') {
+        // ⚠️ MIGRADO AL NUEVO DISPATCHER
+        /* if (msg.type === 'ping') {
             ws.send(JSON.stringify({ type: 'pong' }));
             return;
-        }
+        } */
 
         // GET PLAYERS LIST
-        if (msg.type === 'getPlayers') {
+        // ⚠️ MIGRADO AL NUEVO DISPATCHER
+        /* if (msg.type === 'getPlayers') {
             const connectedPlayers = Array.from(connections.keys())
                 .filter(pid => WORLD.players[pid])
                 .map(pid => ({
@@ -2612,7 +5061,7 @@ wss.on('connection', (ws) => {
                 players: connectedPlayers
             }));
             return;
-        }
+        } */
 
         if (!playerId) return;
 
@@ -2628,7 +5077,8 @@ wss.on('connection', (ws) => {
         }
 
         // MOVERSE
-        if (msg.type === 'move') {
+        // ⚠️ MIGRADO AL NUEVO DISPATCHER (arriba)
+        /* if (msg.type === 'move') {
             const target = WORLD.locations[msg.targetId];
 
             if (!target) {
@@ -2665,12 +5115,70 @@ wss.on('connection', (ws) => {
             // Enviar lista actualizada de jugadores (actualizar locaciones)
             broadcast({
                 type: 'players:list',
-                players: getConnectedPlayers()
+                players: Array.from(connections.keys())
+                    .filter(pid => WORLD.players[pid])
+                    .map(pid => ({
+                        id: pid,
+                        nombre: WORLD.players[pid].nombre,
+                        locacion: WORLD.players[pid].locacion,
+                        nivel: WORLD.players[pid].nivel
+                    }))
             });
 
             return;
-        }
+        } // FIN move (migrado) */
 
+        // 🏘️ CAMBIAR DE SUB-UBICACIÓN DENTRO DEL REFUGIO
+        // ⚠️ MIGRADO AL NUEVO DISPATCHER (arriba)
+        /* if (msg.type === 'sublocation:change') {
+            const targetSubLocation = msg.subLocationId;
+
+            // Validar que el jugador está en el refugio
+            if (player.locacion !== 'refugio') {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Solo puedes cambiar de sub-ubicación dentro del refugio'
+                }));
+                return;
+            }
+
+            // Validar que la sub-ubicación existe
+            const refugioData = WORLD.locations.refugio;
+            if (!refugioData.subLocations || !refugioData.subLocations[targetSubLocation]) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Sub-ubicación inválida'
+                }));
+                return;
+            }
+
+            // Cambiar sub-ubicación
+            const oldSubLocation = player.currentSubLocation;
+            player.currentSubLocation = targetSubLocation;
+            const newSubLocationData = refugioData.subLocations[targetSubLocation];
+
+            console.log(`🚶 ${player.nombre} se movió de ${oldSubLocation} → ${targetSubLocation}`);
+
+            // Enviar confirmación al jugador
+            ws.send(JSON.stringify({
+                type: 'sublocation:changed',
+                subLocation: targetSubLocation,
+                subLocationData: newSubLocationData,
+                message: `Te moviste a ${newSubLocationData.nombre}`
+            }));
+
+            // Notificar a otros jugadores en el refugio
+            broadcast({
+                type: 'player:subLocationChanged',
+                playerId,
+                nombre: player.nombre,
+                subLocation: targetSubLocation
+            }, playerId);
+
+            return;
+        } // FIN sublocation:change (migrado) */
+
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: scavenge
         // SCAVENGEAR (buscar recursos)
         if (msg.type === 'scavenge') {
             // Cooldown check
@@ -2749,48 +5257,56 @@ wss.on('connection', (ws) => {
             player.cooldowns.scavenge = Date.now() + 3000;
             return;
         }
+        // FIN scavenge (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: talk, give, giveResource, npc:give_resource
+        // ====================================
         // ====================================
         // HABLAR CON NPC (Diálogos variados)
         // ====================================
         if (msg.type === 'talk') {
-            const npc = WORLD.npcs[msg.npcId];
-            if (!npc || !npc.vivo) {
-                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
-                return;
+            try {
+                const npc = WORLD.npcs[msg.npcId];
+                if (!npc || !npc.vivo) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                    return;
+                }
+
+                if (npc.locacion !== player.locacion && npc.locacion !== 'refugio') {
+                    ws.send(JSON.stringify({ type: 'error', error: 'No puedes hablar con ese NPC desde aquí' }));
+                    return;
+                }
+
+                // Si el NPC tiene múltiples diálogos, elegir uno al azar
+                let dialogo = npc.dialogo || 'Hola...';
+                if (npc.dialogos && npc.dialogos.length > 0) {
+                    dialogo = npc.dialogos[Math.floor(Math.random() * npc.dialogos.length)];
+                }
+
+                // Enviar diálogo y reproducir sonido apropiado
+                const saludos = ['Hola', 'Hey', 'Buenas', 'Qué tal'];
+                const despedidas = ['Adiós', 'Nos vemos', 'Hasta luego', 'Cuídate'];
+
+                let sonido = 'npc_charla';
+                if (saludos.some(s => dialogo.includes(s))) {
+                    sonido = 'npc_saludo';
+                } else if (despedidas.some(s => dialogo.includes(s))) {
+                    sonido = 'npc_despedida';
+                }
+
+                ws.send(JSON.stringify({
+                    type: 'npc:talk',
+                    npcId: msg.npcId,
+                    npcName: npc.nombre,
+                    dialogo: dialogo,
+                    playSound: sonido
+                }));
+
+                console.log(`💬 ${player.nombre} habla con ${npc.nombre}: "${dialogo}"`);
+            } catch (error) {
+                console.error('❌ Error en talk handler:', error);
+                ws.send(JSON.stringify({ type: 'error', error: 'Error al hablar con NPC' }));
             }
-
-            if (npc.locacion !== player.locacion && npc.locacion !== 'refugio') {
-                ws.send(JSON.stringify({ type: 'error', error: 'No puedes hablar con ese NPC desde aquí' }));
-                return;
-            }
-
-            // Si el NPC tiene múltiples diálogos, elegir uno al azar
-            let dialogo = npc.dialogo;
-            if (npc.dialogos && npc.dialogos.length > 0) {
-                dialogo = npc.dialogos[Math.floor(Math.random() * npc.dialogos.length)];
-            }
-
-            // Enviar diálogo y reproducir sonido apropiado
-            const saludos = ['Hola', 'Hey', 'Buenas', 'Qué tal'];
-            const despedidas = ['Adiós', 'Nos vemos', 'Hasta luego', 'Cuídate'];
-
-            let sonido = 'npc_charla';
-            if (saludos.some(s => dialogo.includes(s))) {
-                sonido = 'npc_saludo';
-            } else if (despedidas.some(s => dialogo.includes(s))) {
-                sonido = 'npc_despedida';
-            }
-
-            ws.send(JSON.stringify({
-                type: 'npc:talk',
-                npcId: msg.npcId,
-                npcName: npc.nombre,
-                dialogo: dialogo,
-                playSound: sonido
-            }));
-
-            log(`${npc.nombre}: "${dialogo}"`);
             return;
         }
 
@@ -2848,10 +5364,12 @@ wss.on('connection', (ws) => {
                 npcState: npc
             }));
 
-            log(`Diste ${cantidad} ${recurso} a ${npc.nombre}`);
+            console.log(`💝 ${player.nombre} dio ${cantidad} ${recurso} a ${npc.nombre}`);
             return;
         }
+        // FIN talk and give handlers (migrados) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: craft
         // CRAFTEAR
         if (msg.type === 'craft') {
             // Cooldown check
@@ -2922,7 +5440,9 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN craft (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: narrative:respond
         // ====================================
         // RESPONDER EVENTO NARRATIVO
         // ====================================
@@ -3029,10 +5549,321 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN narrative:respond (migrado) */
 
-        // DISPARAR (mata zombies pero atrae más)
-        // COMBATE MEJORADO
-        if (msg.type === 'attack') {
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: combat:start, combat:attack, attack, combat:flee
+        // ====================================
+        // SISTEMA DE COMBATE POR TURNOS
+        // ====================================
+        if (msg.type === 'combat:start') {
+            const loc = WORLD.locations[player.locacion];
+
+            if (loc.zombies === 0) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No hay zombies aquí' }));
+                return;
+            }
+
+            if (player.inCombat) {
+                ws.send(JSON.stringify({ type: 'error', error: 'Ya estás en combate' }));
+                return;
+            }
+
+            // Iniciar combate con un zombie
+            const zombieMaxHP = 50 + (Math.floor(Math.random() * 30)); // 50-80 HP
+            player.inCombat = {
+                zombieHP: zombieMaxHP,
+                zombieMaxHP: zombieMaxHP,
+                turno: 'player', // player o zombie
+                roundNumber: 1
+            };
+
+            ws.send(JSON.stringify({
+                type: 'combat:started',
+                zombie: {
+                    hp: zombieMaxHP,
+                    maxHP: zombieMaxHP
+                },
+                player: {
+                    hp: player.salud,
+                    maxHP: player.saludMaxima || 100
+                },
+                turno: 'player',
+                message: '🧟 ¡Un zombie te ataca! Es tu turno.'
+            }));
+
+            return;
+        }
+
+        // ATACAR EN COMBATE POR TURNOS
+        if (msg.type === 'combat:attack' || msg.type === 'attack') {
+            if (!player.inCombat && msg.type === 'combat:attack') {
+                ws.send(JSON.stringify({ type: 'error', error: 'No estás en combate. Usa el botón "Atacar Zombies" primero.' }));
+                return;
+            }
+
+            // Si no está en combate y usa el botón de attack normal, iniciar combate automáticamente
+            if (!player.inCombat && msg.type === 'attack') {
+                const loc = WORLD.locations[player.locacion];
+                if (loc.zombies === 0) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'No hay zombies aquí' }));
+                    return;
+                }
+
+                const zombieMaxHP = 50 + (Math.floor(Math.random() * 30));
+                player.inCombat = {
+                    zombieHP: zombieMaxHP,
+                    zombieMaxHP: zombieMaxHP,
+                    turno: 'player',
+                    roundNumber: 1
+                };
+            }
+
+            const tipoAtaque = msg.attackType || 'melee';
+            const combat = player.inCombat;
+
+            if (combat.turno !== 'player') {
+                ws.send(JSON.stringify({ type: 'error', error: 'No es tu turno' }));
+                return;
+            }
+
+            let resultado = {
+                playerAttack: {},
+                zombieAttack: {},
+                combatEnded: false,
+                playerWon: false,
+                loot: {}
+            };
+
+            // ========== ATAQUE DEL JUGADOR ==========
+            let playerDamage = 0;
+            let playerCrit = false;
+
+            if (tipoAtaque === 'shoot') {
+                // Requiere armas
+                if (!player.inventario.armas || player.inventario.armas < 1) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'No tienes armas' }));
+                    return;
+                }
+                player.inventario.armas -= 1;
+
+                // Daño: 20-30 base + fuerza + combate skill
+                playerDamage = Math.floor(20 + Math.random() * 10 + player.atributos.fuerza * 2 + player.skills.combate * 3);
+
+                // Crítico 25% + agilidad
+                if (Math.random() < 0.25 + (player.atributos.agilidad / 50)) {
+                    playerDamage *= 2;
+                    playerCrit = true;
+                }
+            } else if (tipoAtaque === 'melee') {
+                // Daño: 10-15 base + fuerza * 2 + combate
+                playerDamage = Math.floor(10 + Math.random() * 5 + player.atributos.fuerza * 2 + player.skills.combate * 2);
+
+                // Crítico 15% + fuerza
+                if (Math.random() < 0.15 + (player.atributos.fuerza / 50)) {
+                    playerDamage *= 1.5;
+                    playerCrit = true;
+                }
+            }
+
+            combat.zombieHP -= playerDamage;
+            resultado.playerAttack = {
+                damage: playerDamage,
+                critical: playerCrit,
+                type: tipoAtaque
+            };
+
+            // ¿Zombie muerto?
+            if (combat.zombieHP <= 0) {
+                resultado.combatEnded = true;
+                resultado.playerWon = true;
+
+                // Loot del zombie
+                if (Math.random() < 0.4) { // 40% chance
+                    const lootOptions = ['comida', 'medicinas', 'materiales', 'armas'];
+                    const lootItem = lootOptions[Math.floor(Math.random() * lootOptions.length)];
+                    resultado.loot[lootItem] = 1;
+                    player.inventario[lootItem] = (player.inventario[lootItem] || 0) + 1;
+                }
+
+                // Reducir zombies en la locación
+                const loc = WORLD.locations[player.locacion];
+                loc.zombies = Math.max(0, loc.zombies - 1);
+
+                // XP y stats
+                giveXP(player, 15, ws);
+                updatePlayerStats(player, 'zombies_matados', 1);
+                player.skills.combate = Math.min(10, player.skills.combate + 0.2);
+                checkAchievements(player, ws);
+
+                delete player.inCombat;
+
+                ws.send(JSON.stringify({
+                    type: 'combat:result',
+                    resultado,
+                    player: {
+                        hp: player.salud,
+                        maxHP: player.saludMaxima || 100,
+                        inventario: player.inventario
+                    },
+                    message: `¡Mataste al zombie! +15 XP`,
+                    zombiesRemaining: loc.zombies
+                }));
+
+                broadcast({
+                    type: 'world:event',
+                    message: `⚔️ ${player.nombre} eliminó un zombie${playerCrit ? ' con golpe CRÍTICO' : ''}`,
+                    category: 'combat'
+                });
+
+                return;
+            }
+
+            // ========== CONTRAATAQUE DEL ZOMBIE ==========
+            combat.turno = 'zombie';
+
+            // Zombie ataca después de 1 segundo
+            setTimeout(() => {
+                if (!player.inCombat) return; // Combat ended
+
+                let zombieDamage = Math.floor(8 + Math.random() * 12); // 8-20 daño
+                let playerDodged = false;
+
+                // Jugador puede esquivar (agilidad)
+                const dodgeChance = Math.min(0.35, 0.10 + (player.atributos.agilidad / 40)); // Max 35%
+                if (Math.random() < dodgeChance) {
+                    playerDodged = true;
+                    zombieDamage = 0;
+                }
+
+                // Reducir daño por resistencia (cada punto reduce 5% el daño)
+                if (!playerDodged) {
+                    const damageReduction = 1 - Math.min(0.5, player.atributos.resistencia * 0.05);
+                    zombieDamage = Math.floor(zombieDamage * damageReduction);
+                }
+
+                player.salud = Math.max(0, player.salud - zombieDamage);
+                resultado.zombieAttack = {
+                    damage: zombieDamage,
+                    dodged: playerDodged
+                };
+
+                combat.turno = 'player';
+                combat.roundNumber++;
+
+                // ¿Jugador muerto?
+                if (player.salud <= 0) {
+                    resultado.combatEnded = true;
+                    resultado.playerWon = false;
+                    delete player.inCombat;
+
+                    ws.send(JSON.stringify({
+                        type: 'combat:result',
+                        resultado,
+                        player: {
+                            hp: 0,
+                            maxHP: player.saludMaxima || 100
+                        },
+                        message: '💀 ¡El zombie te mató! GAME OVER'
+                    }));
+
+                    // Respawn del jugador
+                    setTimeout(() => {
+                        player.salud = Math.floor((player.saludMaxima || 100) * 0.5);
+                        player.locacion = 'refugio';
+
+                        ws.send(JSON.stringify({
+                            type: 'player:respawn',
+                            message: 'Despertaste en el refugio...',
+                            player: {
+                                salud: player.salud,
+                                locacion: player.locacion
+                            }
+                        }));
+
+                        renderGame();
+                    }, 3000);
+
+                    return;
+                }
+
+                // Combate continúa
+                ws.send(JSON.stringify({
+                    type: 'combat:turn_result',
+                    resultado,
+                    zombie: {
+                        hp: combat.zombieHP,
+                        maxHP: combat.zombieMaxHP
+                    },
+                    player: {
+                        hp: player.salud,
+                        maxHP: player.saludMaxima || 100
+                    },
+                    turno: 'player',
+                    roundNumber: combat.roundNumber,
+                    message: `Round ${combat.roundNumber} - Tu turno`
+                }));
+            }, 1200);
+
+            return;
+        }
+
+        // HUIR DEL COMBATE
+        if (msg.type === 'combat:flee') {
+            if (!player.inCombat) {
+                ws.send(JSON.stringify({ type: 'error', error: 'No estás en combate' }));
+                return;
+            }
+
+            // Chance de huir basada en agilidad (50% base + agilidad%)
+            const fleeChance = 0.5 + (player.atributos.agilidad / 50);
+
+            if (Math.random() < fleeChance) {
+                delete player.inCombat;
+                ws.send(JSON.stringify({
+                    type: 'combat:fled',
+                    success: true,
+                    message: '🏃 Lograste escapar del zombie'
+                }));
+            } else {
+                // Falla: zombie ataca
+                const zombieDamage = Math.floor(10 + Math.random() * 15);
+                player.salud = Math.max(0, player.salud - zombieDamage);
+
+                if (player.salud <= 0) {
+                    delete player.inCombat;
+                    ws.send(JSON.stringify({
+                        type: 'combat:fled',
+                        success: false,
+                        died: true,
+                        message: '💀 El zombie te alcanzó y te mató'
+                    }));
+
+                    // Respawn
+                    setTimeout(() => {
+                        player.salud = Math.floor((player.saludMaxima || 100) * 0.5);
+                        player.locacion = 'refugio';
+                        ws.send(JSON.stringify({
+                            type: 'player:respawn',
+                            player: { salud: player.salud, locacion: player.locacion }
+                        }));
+                    }, 3000);
+                } else {
+                    ws.send(JSON.stringify({
+                        type: 'combat:fled',
+                        success: false,
+                        damage: zombieDamage,
+                        player: { hp: player.salud, maxHP: player.saludMaxima || 100 },
+                        message: `❌ No pudiste escapar. El zombie te hizo ${zombieDamage} de daño`
+                    }));
+                }
+            }
+
+            return;
+        }
+        // FIN combat handlers (migrados) */
+
+        // SISTEMA DE COMBATE LEGACY (para compatibilidad con código viejo)
+        if (msg.type === 'attack_legacy') {
             const tipoAtaque = msg.attackType || 'shoot'; // shoot, melee, stealth
 
             // Cooldown check
@@ -3159,6 +5990,7 @@ wss.on('connection', (ws) => {
                 critico: resultado.critico,
                 playSound: resultado.playSound || null,
                 remaining: loc.zombies,
+                zombiesMax: loc.zombiesInitial || 0,
                 loot: resultado.loot,
                 tipoAtaque,
                 inventario: player.inventario
@@ -3194,15 +6026,21 @@ wss.on('connection', (ws) => {
                 category: 'combat'
             });
 
-            // Enviar estado actualizado del mundo al jugador
+            // Enviar estado actualizado de la ubicación
             ws.send(JSON.stringify({
-                type: 'world:state',
-                world: WORLD
+                type: 'location:update',
+                location: {
+                    id: loc.id,
+                    zombies: loc.zombies,
+                    zombiesMax: loc.zombiesInitial || 0,
+                    nivelRuido: loc.nivelRuido
+                }
             }));
 
             return;
         }
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: give
         // DAR ITEM A NPC
         if (msg.type === 'give') {
             const npc = WORLD.npcs[msg.npcId];
@@ -3247,7 +6085,9 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN give (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: donate
         // DONAR AL REFUGIO
         if (msg.type === 'donate') {
             const item = msg.item;
@@ -3283,7 +6123,7 @@ wss.on('connection', (ws) => {
                 type: 'world:event',
                 message: `💝 ${player.nombre} donó ${cantidad} ${item} al refugio`,
                 category: 'resource'
-            });
+            }));
 
             broadcast({
                 type: 'refugio:recursos',
@@ -3292,9 +6132,11 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN donate (migrado) */
 
         // ===== SISTEMA DE MUNDO VIVO =====
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: getWorldEvents
         // OBTENER EVENTOS DEL MUNDO (Feed de noticias)
         if (msg.type === 'getWorldEvents') {
             try {
@@ -3315,7 +6157,9 @@ wss.on('connection', (ws) => {
             }
             return;
         }
+        // FIN getWorldEvents (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: getIntenseRelationships
         // OBTENER RELACIONES INTENSAS (dramas activos)
         if (msg.type === 'getIntenseRelationships') {
             try {
@@ -3336,7 +6180,9 @@ wss.on('connection', (ws) => {
             }
             return;
         }
+        // FIN getIntenseRelationships (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: getWorldState
         // OBTENER ESTADO DEL MUNDO (stats de simulación)
         if (msg.type === 'getWorldState') {
             try {
@@ -3369,9 +6215,11 @@ wss.on('connection', (ws) => {
             }
             return;
         }
+        // FIN getWorldState (migrado) */
 
         // ===== FIN SISTEMA DE MUNDO VIVO =====
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: getActiveQuests, acceptQuest, completeQuest
         // OBTENER MISIONES ACTIVAS (quests dinámicas)
         if (msg.type === 'getActiveQuests') {
             try {
@@ -3473,9 +6321,11 @@ wss.on('connection', (ws) => {
             }
             return;
         }
+        // FIN quest handlers (migrados) */
 
         // ===== SISTEMA DE MISIONES NARRATIVAS =====
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: getNarrativeMissions, startNarrativeMission, narrativeChoice
         // OBTENER MISIONES NARRATIVAS DISPONIBLES
         if (msg.type === 'getNarrativeMissions') {
             try {
@@ -3593,6 +6443,7 @@ wss.on('connection', (ws) => {
             return;
         }
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: narrativeVote, getActiveMission
         // VOTAR EN MISIÓN GRUPAL
         if (msg.type === 'narrativeVote') {
             try {
@@ -3633,9 +6484,11 @@ wss.on('connection', (ws) => {
             }
             return;
         }
+        // FIN narrativeVote and getActiveMission (migrados) */
 
         // ===== FIN MISIONES NARRATIVAS =====
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: trade
         // COMERCIAR con Jorge
         if (msg.type === 'trade') {
             const npc = WORLD.npcs.comerciante;
@@ -3674,7 +6527,9 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN trade (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: event:respond
         // RESPONDER A EVENTO ESPECIAL
         if (msg.type === 'event:respond') {
             const evento = WORLD.activeEvents.find(e => e.id === msg.eventId);
@@ -3816,21 +6671,25 @@ wss.on('connection', (ws) => {
             return;
         }
 
-        // HABLAR CON NPC
+        // ====================================
+        // SISTEMA DE DIÁLOGO AVANZADO (DESACTIVADO TEMPORALMENTE)
+        // Este código está comentado porque causaba conflictos con el handler simple de 'talk'
+        // ====================================
+        /*
         if (msg.type === 'talk') {
             const npc = WORLD.npcs[msg.npcId];
-
+        
             if (!npc || !npc.vivo) {
                 ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
                 return;
             }
-
+        
             // Generar opciones de diálogo basadas en el estado del NPC
             const opciones = [];
-
+        
             // Opciones básicas siempre disponibles
             opciones.push({ texto: '👋 Saludar', efecto: 'saludo' });
-
+        
             // Opciones según necesidades del NPC
             if (npc.hambre < 50) {
                 opciones.push({
@@ -3839,14 +6698,14 @@ wss.on('connection', (ws) => {
                     requiere: { comida: 1 }
                 });
             }
-
+        
             if (npc.moral < 50) {
                 opciones.push({
                     texto: '💬 Animar',
                     efecto: 'animar'
                 });
             }
-
+        
             if (player.inventario.medicinas && player.inventario.medicinas > 0 && npc.salud < 80) {
                 opciones.push({
                     texto: '💊 Ofrecer medicina',
@@ -3854,7 +6713,7 @@ wss.on('connection', (ws) => {
                     requiere: { medicinas: 1 }
                 });
             }
-
+        
             // Opciones especiales según el NPC
             if (npc.id === 'gomez' && player.inventario.armas && player.inventario.armas >= 5) {
                 opciones.push({
@@ -3862,9 +6721,9 @@ wss.on('connection', (ws) => {
                     efecto: 'consulta_defensas'
                 });
             }
-
+        
             opciones.push({ texto: '👋 Despedirse', efecto: 'despedida' });
-
+        
             ws.send(JSON.stringify({
                 type: 'dialogue',
                 npcId: npc.id,
@@ -3874,106 +6733,112 @@ wss.on('connection', (ws) => {
                 npcState: { salud: npc.salud, hambre: npc.hambre, moral: npc.moral },
                 options: opciones
             }));
-
+        
             return;
         }
+        */
 
-        // RESPONDER A DIÁLOGO
+        // ====================================
+        // RESPONDER A DIÁLOGO (Sistema avanzado - comentado temporalmente)
+        // ====================================
         if (msg.type === 'dialogue:respond') {
-            const npc = WORLD.npcs[msg.npcId];
-            if (!npc || !npc.vivo) return;
+            try {
+                const npc = WORLD.npcs[msg.npcId];
+                if (!npc || !npc.vivo) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                    return;
+                }
 
-            const opciones = [];
+                const opciones = [];
 
-            opciones.push({ texto: '👋 Saludar', efecto: 'saludo' });
-            if (npc.hambre < 50) {
-                opciones.push({ texto: '🍖 Ofrecer comida', efecto: 'dar_comida', requiere: { comida: 1 } });
+                opciones.push({ texto: '👋 Saludar', efecto: 'saludo' });
+                if (npc.hambre < 50) {
+                    opciones.push({ texto: '🍖 Ofrecer comida', efecto: 'dar_comida', requiere: { comida: 1 } });
+                }
+                if (npc.moral < 50) {
+                    opciones.push({ texto: '💬 Animar', efecto: 'animar' });
+                }
+                if (player.inventario.medicinas && player.inventario.medicinas > 0 && npc.salud < 80) {
+                    opciones.push({ texto: '💊 Ofrecer medicina', efecto: 'dar_medicina', requiere: { medicinas: 1 } });
+                }
+                if (npc.id === 'gomez' && player.inventario.armas && player.inventario.armas >= 5) {
+                    opciones.push({ texto: '🔫 Preguntarle sobre defensas', efecto: 'consulta_defensas' });
+                }
+                opciones.push({ texto: '👋 Despedirse', efecto: 'despedida' });
+
+                const opcion = opciones[msg.optionIndex];
+                if (!opcion) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'Opción inválida' }));
+                    return;
+                }
+
+                let respuesta = '';
+
+                switch (opcion.efecto) {
+                    case 'saludo':
+                        respuesta = npc.moral > 70
+                            ? `¡Hola ${player.nombre}! ¿Cómo estás?`
+                            : `Hola... *suspiro*`;
+                        break;
+
+                    case 'dar_comida':
+                        if (player.inventario.comida && player.inventario.comida >= 1) {
+                            player.inventario.comida--;
+                            npc.hambre = Math.min(100, npc.hambre + 30);
+                            npc.moral = Math.min(100, npc.moral + 10);
+                            respuesta = `¡Muchas gracias ${player.nombre}! Esto me ayudará mucho.`;
+                            if (updatePlayerStats) updatePlayerStats(player, 'items_dados', 1);
+                        } else {
+                            respuesta = 'Parece que no tienes comida...';
+                        }
+                        break;
+
+                    case 'dar_medicina':
+                        if (player.inventario.medicinas && player.inventario.medicinas >= 1) {
+                            player.inventario.medicinas--;
+                            npc.salud = Math.min(100, npc.salud + 40);
+                            npc.moral = Math.min(100, npc.moral + 15);
+                            respuesta = `¡Gracias! Me siento mucho mejor ahora.`;
+                            if (updatePlayerStats) updatePlayerStats(player, 'items_dados', 1);
+                        } else {
+                            respuesta = 'No tienes medicinas...';
+                        }
+                        break;
+
+                    case 'animar':
+                        npc.moral = Math.min(100, npc.moral + 20);
+                        respuesta = `*sonríe* Gracias ${player.nombre}, necesitaba eso.`;
+                        break;
+
+                    case 'despedida':
+                        respuesta = 'Cuídate... Hasta pronto.';
+                        break;
+
+                    default:
+                        respuesta = 'Hmm...';
+                }
+
+                ws.send(JSON.stringify({
+                    type: 'dialogue',
+                    npcId: npc.id,
+                    npc: npc.nombre,
+                    text: respuesta,
+                    playSound: 'npc_charla',
+                    npcState: { salud: npc.salud, hambre: npc.hambre, moral: npc.moral },
+                    options: opciones
+                }));
+
+                console.log(`💬 ${player.nombre} responde a ${npc.nombre}: ${opcion.texto}`);
+            } catch (error) {
+                console.error('❌ Error en dialogue:respond handler:', error);
+                ws.send(JSON.stringify({ type: 'error', error: 'Error en diálogo' }));
             }
-            if (npc.moral < 50) {
-                opciones.push({ texto: '💬 Animar', efecto: 'animar' });
-            }
-            if (player.inventario.medicinas && player.inventario.medicinas > 0 && npc.salud < 80) {
-                opciones.push({ texto: '💊 Ofrecer medicina', efecto: 'dar_medicina', requiere: { medicinas: 1 } });
-            }
-            if (npc.id === 'gomez' && player.inventario.armas && player.inventario.armas >= 5) {
-                opciones.push({ texto: '🔫 Preguntarle sobre defensas', efecto: 'consulta_defensas' });
-            }
-            opciones.push({ texto: '👋 Despedirse', efecto: 'despedida' });
-
-            const opcion = opciones[msg.optionIndex];
-            if (!opcion) return;
-
-            let respuesta = '';
-
-            switch (opcion.efecto) {
-                case 'saludo':
-                    respuesta = npc.moral > 70
-                        ? `¡Hola ${player.nombre}! ¿Cómo estás?`
-                        : `Hola... *suspiro*`;
-                    break;
-
-                case 'dar_comida':
-                    if (player.inventario.comida && player.inventario.comida >= 1) {
-                        player.inventario.comida--;
-                        npc.hambre = Math.min(100, npc.hambre + 30);
-                        npc.moral = Math.min(100, npc.moral + 10);
-                        respuesta = `¡Muchas gracias ${player.nombre}! Esto me ayudará mucho.`;
-                        updatePlayerStats(player, 'items_dados', 1);
-                    } else {
-                        respuesta = 'Parece que no tienes comida...';
-                    }
-                    break;
-
-                case 'dar_medicina':
-                    if (player.inventario.medicinas && player.inventario.medicinas >= 1) {
-                        player.inventario.medicinas--;
-                        npc.salud = Math.min(100, npc.salud + 40);
-                        npc.moral = Math.min(100, npc.moral + 15);
-                        respuesta = `¡Gracias! Me siento mucho mejor ahora.`;
-                        updatePlayerStats(player, 'items_dados', 1);
-                    } else {
-                        respuesta = 'No tienes medicinas...';
-                    }
-                    break;
-
-                case 'animar':
-                    npc.moral = Math.min(100, npc.moral + 20);
-                    respuesta = `Gracias por tus palabras, ${player.nombre}. Significa mucho para mí.`;
-                    break;
-
-                case 'consulta_defensas':
-                    respuesta = `Las defensas del refugio están en ${WORLD.locations.refugio.defensas}. Necesitamos más barricadas y trampas.`;
-                    break;
-
-                case 'despedida':
-                    respuesta = npc.moral > 70
-                        ? '¡Hasta luego! Cuídate ahí afuera.'
-                        : 'Adiós...';
-                    break;
-            }
-
-            // Determinar qué sonido reproducir
-            const playSound = opcion.efecto === 'despedida' ? 'npc_despedida' : 'npc_charla';
-
-            ws.send(JSON.stringify({
-                type: 'dialogue',
-                npcId: npc.id,
-                npc: npc.nombre,
-                text: respuesta,
-                playSound: playSound,
-                npcState: { salud: npc.salud, hambre: npc.hambre, moral: npc.moral },
-                options: opcion.efecto === 'despedida' ? [] : opciones
-            }));
-
-            broadcast({
-                type: 'world:state',
-                world: WORLD
-            });
-
             return;
         }
 
+        // ====================================
         // VOTAR EN QUEST COOPERATIVA
+        // ====================================
         if (msg.type === 'quest:vote') {
             if (!WORLD.questCooperativa.activa) {
                 ws.send(JSON.stringify({ type: 'error', error: 'No hay quest activa' }));
@@ -4011,6 +6876,7 @@ wss.on('connection', (ws) => {
             return;
         }
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: chat
         // CHAT
         if (msg.type === 'chat') {
             const mensaje = msg.mensaje.trim();
@@ -4087,6 +6953,7 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN chat (migrado) */
 
         // ====================================
         // MENSAJES PRIVADOS (DM)
@@ -4129,7 +6996,9 @@ wss.on('connection', (ws) => {
 
             return;
         }
+        // FIN dm (migrado) */
 
+        /* ⚠️ MIGRADO AL NUEVO DISPATCHER: mission:complete
         // COMPLETAR MISIÓN
         if (msg.type === 'mission:complete') {
             const mission = WORLD.activeMissions.find(m => m.id === msg.missionId);
@@ -4147,6 +7016,7 @@ wss.on('connection', (ws) => {
             completeMission(player, mission);
             return;
         }
+        // FIN mission:complete (migrado) */
 
         // ALIMENTAR MASCOTA
         if (msg.type === 'pet:feed') {
@@ -4438,28 +7308,64 @@ wss.on('connection', (ws) => {
                 npc.moral = Math.min(100, npc.moral + (8 * cantidad));
             }
 
+            // Respuesta del NPC
+            const respuestas = [
+                '¡Muchas gracias! Esto me ayuda mucho.',
+                '¡Eres muy amable! Gracias.',
+                'No olvidaré esto. Gracias.',
+                'Esto significa mucho para mí. Gracias.',
+                'Qué generoso. Muchas gracias.',
+            ];
+
             ws.send(JSON.stringify({
                 type: 'npc:resource_given',
                 npcId: npc.id,
+                npcName: npc.nombre,
                 resource,
                 cantidad,
-                message: `Le diste ${cantidad} ${resource} a ${npc.nombre}. ¡Reputación +${repGain}!`,
-                reputation: newRep,
-                level: getReputationLevel(newRep)
+                inventario: player.inventario,
+                npcState: npc,
+                reputation: newRep
             }));
 
-            broadcast({
-                type: 'narrative',
-                text: `${player.nombre} le dio ${cantidad} ${resource} a ${npc.nombre}.`,
-                category: 'comercio'
-            });
+            // Enviar mensaje de agradecimiento del NPC
+            ws.send(JSON.stringify({
+                type: 'npc:talk',
+                npcId: npc.id,
+                npcName: npc.nombre,
+                dialogo: respuestas[Math.floor(Math.random() * respuestas.length)],
+                playSound: 'npc_charla'
+            }));
 
-            broadcast({
-                type: 'world:state',
-                world: WORLD
-            });
+            log(`💝 ${player.nombre} dio ${cantidad} ${resource} a ${npc.nombre}`);
+            return;
+        }
 
-            updatePlayerStats(player, 'items_dados', cantidad);
+        // VERIFICAR REPUTACIÓN CON NPC
+        if (msg.type === 'npc:check_reputation') {
+            const npc = WORLD.npcs[msg.npcId];
+            if (!npc) {
+                ws.send(JSON.stringify({ type: 'error', error: 'NPC no disponible' }));
+                return;
+            }
+
+            const rep = getReputation(playerId, msg.npcId);
+
+            let relationStatus = 'Neutral';
+            if (rep >= 80) relationStatus = 'Mejor Amigo';
+            else if (rep >= 60) relationStatus = 'Amigo Cercano';
+            else if (rep >= 40) relationStatus = 'Amigo';
+            else if (rep >= 20) relationStatus = 'Conocido';
+            else if (rep <= -20) relationStatus = 'Hostil';
+            else if (rep <= -40) relationStatus = 'Enemigo';
+
+            ws.send(JSON.stringify({
+                type: 'npc:reputation_info',
+                npcId: npc.id,
+                npcName: npc.nombre,
+                reputation: rep,
+                status: relationStatus
+            }));
 
             return;
         }
@@ -4658,6 +7564,408 @@ wss.on('connection', (ws) => {
 
             return;
         }
+
+        // ====================================
+        // SISTEMA DE FOGATA (RED SOCIAL)
+        // ====================================
+
+        // CREAR POST EN FOGATA
+        if (msg.type === 'fogata:create') {
+            // Verificar que esté en refugio
+            if (player.locacion !== 'refugio') {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Debes estar en el Refugio Central para publicar'
+                }));
+                return;
+            }
+
+            const { title, content, category } = msg;
+
+            if (!title || !content || title.trim() === '' || content.trim() === '') {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'El título y contenido no pueden estar vacíos'
+                }));
+                return;
+            }
+
+            const newPost = {
+                id: `post_${postIdCounter++}`,
+                authorId: playerId,
+                authorName: player.nombre,
+                authorAvatar: player.avatar || '👤',
+                authorColor: player.color || '#ffffff',
+                title: title.trim(),
+                content: content.trim(),
+                category: category || 'general',
+                timestamp: Date.now(),
+                likes: [],
+                commentCount: 0
+            };
+
+            POSTS_DB.unshift(newPost); // Agregar al inicio
+
+            // Broadcast a todos los jugadores
+            broadcast({
+                type: 'fogata:new_post',
+                post: newPost
+            });
+
+            ws.send(JSON.stringify({
+                type: 'fogata:created',
+                success: true,
+                post: newPost
+            }));
+
+            console.log(`📝 ${player.nombre} creó un post: "${title}"`);
+            return;
+        }
+
+        // CARGAR POSTS DE FOGATA
+        if (msg.type === 'fogata:load') {
+            const limit = msg.limit || 20;
+            const category = msg.category || 'all';
+            const sortBy = msg.sortBy || 'recent'; // 'recent', 'likes', 'comments'
+            const page = msg.page || 0;
+
+            let posts = [...POSTS_DB];
+
+            // Filtrar por categoría si no es 'all'
+            if (category !== 'all') {
+                posts = posts.filter(p => p.category === category);
+            }
+
+            // Ordenar según criterio
+            if (sortBy === 'likes') {
+                posts.sort((a, b) => b.likes.length - a.likes.length);
+            } else if (sortBy === 'comments') {
+                posts.sort((a, b) => b.commentCount - a.commentCount);
+            }
+            // 'recent' ya está ordenado por defecto (más nuevos primero)
+
+            // Paginación
+            const startIndex = page * limit;
+            const postsToSend = posts.slice(startIndex, startIndex + limit);
+
+            ws.send(JSON.stringify({
+                type: 'fogata:list',
+                posts: postsToSend,
+                total: posts.length,
+                page: page,
+                hasMore: startIndex + limit < posts.length
+            }));
+
+            return;
+        }
+
+        // DAR LIKE A POST
+        if (msg.type === 'fogata:like') {
+            const post = POSTS_DB.find(p => p.id === msg.postId);
+
+            if (!post) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Post no encontrado'
+                }));
+                return;
+            }
+
+            // Toggle like
+            const likeIndex = post.likes.indexOf(playerId);
+
+            if (likeIndex === -1) {
+                post.likes.push(playerId);
+            } else {
+                post.likes.splice(likeIndex, 1);
+            }
+
+            // Broadcast actualización
+            broadcast({
+                type: 'fogata:like_update',
+                postId: post.id,
+                likes: post.likes,
+                liker: player.nombre
+            });
+
+            return;
+        }
+
+        // AGREGAR COMENTARIO A POST
+        if (msg.type === 'fogata:comment') {
+            const post = POSTS_DB.find(p => p.id === msg.postId);
+
+            if (!post) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Post no encontrado'
+                }));
+                return;
+            }
+
+            // Soportar tanto 'content' como 'comment' para compatibilidad
+            const content = msg.content || msg.comment;
+
+            if (!content || content.trim() === '') {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'El comentario no puede estar vacío'
+                }));
+                return;
+            }
+
+            const newComment = {
+                id: `comment_${commentIdCounter++}`,
+                postId: post.id,
+                authorId: playerId,
+                authorName: player.nombre,
+                authorAvatar: player.avatar || '👤',
+                authorColor: player.color || '#ffffff',
+                content: content.trim(),
+                timestamp: Date.now()
+            };
+
+            COMMENTS_DB.push(newComment);
+            post.commentCount++;
+
+            // Respuesta automática de NPC (20% de probabilidad)
+            if (Math.random() < 0.20) {
+                setTimeout(() => generateNPCComment(post.id, content), Math.random() * 3000 + 2000);
+            }
+
+            // Broadcast nuevo comentario
+            broadcast({
+                type: 'fogata:comment_added',
+                postId: post.id,
+                comment: newComment,
+                commentCount: post.commentCount
+            });
+
+            // Enviar confirmación al autor
+            ws.send(JSON.stringify({
+                type: 'fogata:comment_success',
+                postId: post.id,
+                comment: newComment
+            }));
+
+            return;
+        }
+
+        // CARGAR COMENTARIOS DE POST
+        if (msg.type === 'fogata:loadComments') {
+            const comments = COMMENTS_DB.filter(c => c.postId === msg.postId);
+
+            ws.send(JSON.stringify({
+                type: 'fogata:comments',
+                postId: msg.postId,
+                comments: comments
+            }));
+
+            return;
+        }
+
+        // ====================================
+        // SISTEMA DE JUEGOS DE MESA
+        // ====================================
+
+        // UNIRSE A JUEGO
+        if (msg.type === 'game:join') {
+            // Verificar que esté en refugio
+            if (player.locacion !== 'refugio') {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Debes estar en el Refugio Central para jugar'
+                }));
+                return;
+            }
+
+            const { gameType } = msg;
+            const gameConfig = GAME_TYPES[gameType];
+
+            // 🏘️ VALIDAR SUB-UBICACIÓN PARA JUEGOS
+            const gameLocations = {
+                poker: 'taberna',
+                blackjack: 'taberna',
+                dice: 'callejon',
+                roulette: 'callejon'
+            };
+
+            const requiredLocation = gameLocations[gameType];
+            const currentSubLocation = player.currentSubLocation || 'plaza';
+
+            if (requiredLocation && currentSubLocation !== requiredLocation) {
+                const locationNames = {
+                    taberna: '🍺 Taberna',
+                    callejon: '🎲 Callejón'
+                };
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: `Debes estar en ${locationNames[requiredLocation]} para jugar ${gameConfig.name}`
+                }));
+                return;
+            }
+
+            if (!gameConfig) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Tipo de juego no válido'
+                }));
+                return;
+            }
+
+            // Buscar juego existente con espacio
+            let game = ACTIVE_GAMES.find(g =>
+                g.type === gameType &&
+                g.status === 'waiting' &&
+                g.players.length < gameConfig.maxPlayers
+            );
+
+            // Si no existe, crear nuevo juego
+            if (!game) {
+                game = {
+                    id: `game_${gameIdCounter++}`,
+                    type: gameType,
+                    name: gameConfig.name,
+                    players: [],
+                    pot: { comida: 0, medicinas: 0, materiales: 0, armas: 0 },
+                    status: 'waiting',
+                    minPlayers: gameConfig.minPlayers,
+                    maxPlayers: gameConfig.maxPlayers,
+                    currentTurn: 0,
+                    createdAt: Date.now()
+                };
+                ACTIVE_GAMES.push(game);
+            }
+
+            // Verificar que el jugador no esté ya en el juego
+            if (game.players.find(p => p.id === playerId)) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'Ya estás en este juego'
+                }));
+                return;
+            }
+
+            // Verificar que tenga recursos para la apuesta mínima
+            const anteCost = gameConfig.anteCost;
+            for (const [resource, amount] of Object.entries(anteCost)) {
+                if (!player.inventario[resource] || player.inventario[resource] < amount) {
+                    ws.send(JSON.stringify({
+                        type: 'error',
+                        error: `No tienes suficiente ${resource} (necesitas ${amount})`
+                    }));
+                    return;
+                }
+            }
+
+            // Cobrar apuesta y agregar al pot
+            for (const [resource, amount] of Object.entries(anteCost)) {
+                player.inventario[resource] -= amount;
+                game.pot[resource] += amount;
+            }
+
+            // Agregar jugador al juego
+            game.players.push({
+                id: playerId,
+                nombre: player.nombre,
+                avatar: player.avatar || '👤',
+                color: player.color || '#ffffff',
+                bet: { ...anteCost },
+                ready: false
+            });
+
+            console.log(`🎲 ${player.nombre} se unió a ${gameConfig.name} (${game.players.length}/${gameConfig.maxPlayers})`);
+
+            // NO iniciar automáticamente - esperar que todos estén ready
+            broadcast({
+                type: 'game:updated',
+                game: game,
+                action: 'joined',
+                joiner: player.nombre
+            });
+
+            // Enviar confirmación al jugador
+            ws.send(JSON.stringify({
+                type: 'game:joined',
+                success: true,
+                game: game
+            }));
+
+            return;
+        }
+
+        // MARCAR JUGADOR COMO LISTO
+        if (msg.type === 'game:ready') {
+            const game = ACTIVE_GAMES.find(g =>
+                g.players.some(p => p.id === playerId) && g.status === 'waiting'
+            );
+
+            if (!game) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    error: 'No estás en ningún juego activo'
+                }));
+                return;
+            }
+
+            const playerInGame = game.players.find(p => p.id === playerId);
+            if (playerInGame) {
+                playerInGame.ready = true;
+                console.log(`✅ ${player.nombre} está listo`);
+
+                // Broadcast actualización de ready
+                broadcast({
+                    type: 'game:player_ready',
+                    gameId: game.id,
+                    playerId: playerId,
+                    playerName: player.nombre,
+                    game: game
+                });
+
+                // Verificar si todos están listos
+                const allReady = game.players.every(p => p.ready);
+                const hasMinPlayers = game.players.length >= game.minPlayers;
+
+                if (allReady && hasMinPlayers) {
+                    game.status = 'playing';
+
+                    broadcast({
+                        type: 'game:started',
+                        gameId: game.id,
+                        game: game
+                    });
+
+                    console.log(`🎯 Juego ${game.type} iniciado - Todos listos!`);
+
+                    // Iniciar lógica del juego específico
+                    setTimeout(() => {
+                        resolveGame(game);
+                    }, 2000); // 2 segundos para que vean que inició
+                }
+            }
+
+            return;
+        }
+
+        // LISTAR JUEGOS ACTIVOS
+        if (msg.type === 'game:list') {
+            const activeGames = ACTIVE_GAMES.map(g => ({
+                id: g.id,
+                type: g.type,
+                name: g.name,
+                players: g.players.length,
+                maxPlayers: g.maxPlayers,
+                status: g.status,
+                pot: g.pot
+            }));
+
+            ws.send(JSON.stringify({
+                type: 'game:list',
+                games: activeGames
+            }));
+
+            return;
+        }
     });
 
     ws.on('close', () => {
@@ -4783,12 +8091,17 @@ setInterval(() => {
         // Inicializar tablas de mundo vivo
         npcRelationships.default.initializeSchema();
 
-        // Iniciar simulación
-        worldSimulation.default.start();
+        // Iniciar simulación con contexto social (para que NPCs participen en fogata/juegos/chat)
+        worldSimulation.default.start({
+            broadcast: broadcast,
+            postsDB: POSTS_DB,
+            activeGames: ACTIVE_GAMES
+        });
 
         console.log('🌍 Sistema de Mundo Vivo INICIADO');
         console.log('📖 Motor de narrativa emergente activo');
         console.log('💕 Sistema de relaciones entre NPCs activo');
+        console.log('🎭 NPCs participan en actividades sociales');
     } catch (error) {
         console.error('❌ Error inicializando Mundo Vivo:', error);
     }

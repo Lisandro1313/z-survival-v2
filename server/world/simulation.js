@@ -20,7 +20,7 @@ import npcAI from './npcAI.js';
 class WorldSimulation {
     constructor() {
         this.simulationInterval = null;
-        this.tickRate = 30000; // 30 segundos por tick
+        this.tickRate = 10000; // 10 segundos por tick (más frecuente!)
         this.isRunning = false;
 
         // Configuración de simulación
@@ -41,13 +41,18 @@ class WorldSimulation {
             resourceFlows: new Map(), // Flujo de recursos entre ubicaciones
             recentNpcActions: [] // Acciones autónomas recientes de NPCs (IA)
         };
+
+        // Contexto social para NPCs (broadcast, posts, juegos)
+        this.socialContext = null;
     }
 
     // ===== INICIAR SIMULACIÓN =====
-    start() {
+    start(socialContext = null) {
         if (this.isRunning) return;
 
         this.isRunning = true;
+        this.socialContext = socialContext;
+
         console.log('🌍 Sistema de simulación del mundo INICIADO');
         console.log(`⏰ Tick cada ${this.tickRate / 1000} segundos`);
 
@@ -56,7 +61,7 @@ class WorldSimulation {
 
         // Loop principal de simulación
         this.simulationInterval = setInterval(() => {
-            this.worldTick();
+            this.worldTick(this.socialContext);
         }, this.tickRate);
     }
 
@@ -69,7 +74,7 @@ class WorldSimulation {
     }
 
     // ===== TICK PRINCIPAL DEL MUNDO =====
-    async worldTick() {
+    async worldTick(socialContext = null) {
         this.worldState.tick++;
         // Mundo vive en silencio - jugador descubre cambios
 
@@ -106,6 +111,11 @@ class WorldSimulation {
 
             // 9. NUEVO: Generar quests dinámicas basadas en eventos
             this.generateDynamicQuests();
+
+            // 10. NUEVO: NPCs participan en actividades sociales (fogata, juegos, chat)
+            if (socialContext) {
+                this.simulateNPCSocialLife(socialContext);
+            }
 
             // Tick completado en silencio
         } catch (error) {
@@ -585,6 +595,372 @@ class WorldSimulation {
         if (this.worldState.activeStories.length > 100) {
             this.worldState.activeStories.shift();
         }
+    }
+
+    // ===== SIMULAR VIDA SOCIAL DE NPCs =====
+    // NPCs participan en fogata, juegos, chat como si fueran jugadores reales
+    simulateNPCSocialLife(context) {
+        const { broadcast, postsDB, activeGames } = context;
+
+        // Obtener NPCs activos
+        const npcs = db.prepare(`
+            SELECT n.*, ns.necesidades 
+            FROM npcs n
+            JOIN npc_state ns ON n.id = ns.npc_id
+            WHERE n.estado = 'activo'
+        `).all();
+
+        if (npcs.length === 0) return;
+
+        let actionsCount = 0;
+
+        npcs.forEach(npc => {
+            const needs = JSON.parse(npc.necesidades);
+            const personality = JSON.parse(npc.personalidad || '{}');
+
+            // Probabilidad base de acción social: 80% por NPC por tick (MUY ACTIVO)
+            if (Math.random() > 0.80) return;
+
+            // Elegir tipo de acción social basada en personalidad
+            const actions = [];
+
+            // Acciones disponibles ponderadas por personalidad
+            if (personality.social >= 6) {
+                actions.push({ type: 'create_post', weight: 4 });
+                actions.push({ type: 'chat', weight: 5 });
+            } else {
+                actions.push({ type: 'create_post', weight: 2 });
+                actions.push({ type: 'chat', weight: 3 });
+            }
+
+            if (personality.comerciante >= 7) {
+                actions.push({ type: 'join_game', weight: 5 });
+                actions.push({ type: 'create_game', weight: 3 }); // NUEVO: Crear juegos
+            } else {
+                actions.push({ type: 'join_game', weight: 2 });
+                actions.push({ type: 'create_game', weight: 1 }); // NUEVO: Crear juegos
+            }
+
+            if (postsDB.length > 0) {
+                actions.push({ type: 'comment_post', weight: 2 });
+                actions.push({ type: 'like_post', weight: 3 });
+            }
+
+            // Seleccionar acción aleatoria ponderada
+            const totalWeight = actions.reduce((sum, a) => sum + a.weight, 0);
+            let random = Math.random() * totalWeight;
+            let selectedAction = null;
+
+            for (const action of actions) {
+                random -= action.weight;
+                if (random <= 0) {
+                    selectedAction = action.type;
+                    break;
+                }
+            }
+
+            // Ejecutar acción
+            if (selectedAction) {
+                this.executeNPCSocialAction(npc, selectedAction, { broadcast, postsDB, activeGames });
+                actionsCount++;
+            }
+        });
+
+        if (actionsCount > 0) {
+            console.log(`  🎭 ${actionsCount} NPCs realizaron acciones sociales`);
+        }
+    }
+
+    executeNPCSocialAction(npc, actionType, context) {
+        const { broadcast, postsDB, activeGames } = context;
+
+        switch (actionType) {
+            case 'create_post':
+                this.npcCreatePost(npc, broadcast, postsDB);
+                break;
+            case 'chat':
+                this.npcSendChat(npc, broadcast);
+                break;
+            case 'join_game':
+                this.npcJoinGame(npc, broadcast, activeGames);
+                break;
+            case 'create_game':
+                this.npcCreateGame(npc, broadcast, activeGames);
+                break;
+            case 'comment_post':
+                this.npcCommentPost(npc, broadcast, postsDB);
+                break;
+            case 'like_post':
+                this.npcLikePost(npc, broadcast, postsDB);
+                break;
+        }
+    }
+
+    // NPCs crean posts en fogata
+    npcCreatePost(npc, broadcast, postsDB) {
+        const personality = JSON.parse(npc.personalidad || '{}');
+        const topics = [
+            {
+                category: 'survival', templates: [
+                    'He visto un grupo de zombies cerca de {location}. Cuidado.',
+                    'Encontré recursos en {location}. Aún quedan algunas cosas útiles.',
+                    'Alguien debería revisar {location}, puede haber supervivientes.',
+                    'La zona de {location} está más peligrosa últimamente.',
+                ]
+            },
+            {
+                category: 'social', templates: [
+                    'Extraño los días antes del apocalipsis...',
+                    '¿Alguien más siente que cada día es más difícil?',
+                    'Necesito hablar con alguien. Esto de sobrevivir solo es duro.',
+                    'Me pregunto cuántos más habrán sobrevivido por ahí.',
+                    '¿Qué hacían antes de todo esto? Yo era {profession}.',
+                ]
+            },
+            {
+                category: 'trade', templates: [
+                    'Tengo {resource} de sobra. ¿Alguien necesita?',
+                    'Busco {resource}. Dispuesto a intercambiar.',
+                    'Si alguien tiene {resource}, hablemos.',
+                ]
+            },
+            {
+                category: 'rumor', templates: [
+                    'Escuché que hay un refugio al norte...',
+                    'Dicen que el ejército dejó un bunker abandonado por aquí.',
+                    'Un comerciante me contó sobre una zona segura.',
+                    'He oído rumores de una cura. ¿Será verdad?',
+                ]
+            },
+        ];
+
+        // Elegir categoría basada en personalidad
+        let category;
+        if (personality.comerciante >= 7 && Math.random() > 0.5) {
+            category = topics.find(t => t.category === 'trade');
+        } else if (personality.social >= 7 && Math.random() > 0.4) {
+            category = topics.find(t => t.category === 'social');
+        } else {
+            category = topics[Math.floor(Math.random() * topics.length)];
+        }
+
+        const template = category.templates[Math.floor(Math.random() * category.templates.length)];
+
+        // Rellenar template
+        const locations = ['supermercado', 'farmacia', 'hospital', 'comisaría', 'escuela'];
+        const resources = ['comida', 'medicinas', 'armas', 'agua'];
+        const professions = ['médico', 'ingeniero', 'profesor', 'comerciante', 'soldado'];
+
+        let content = template
+            .replace('{location}', locations[Math.floor(Math.random() * locations.length)])
+            .replace('{resource}', resources[Math.floor(Math.random() * resources.length)])
+            .replace('{profession}', professions[Math.floor(Math.random() * professions.length)]);
+
+        const post = {
+            id: `post_npc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            authorId: `npc_${npc.id}`,
+            authorName: `🤖 ${npc.nombre}`,
+            title: category.category === 'survival' ? '⚠️ Alerta' :
+                category.category === 'social' ? '💭 Reflexión' :
+                    category.category === 'trade' ? '💱 Comercio' : '📢 Rumor',
+            content: content,
+            category: category.category,
+            timestamp: Date.now(),
+            likes: [],
+            comments: [],
+            isNPC: true
+        };
+
+        postsDB.unshift(post);
+
+        // Broadcast a todos
+        broadcast({
+            type: 'fogata:new_post',
+            post: post
+        });
+    }
+
+    // NPCs hablan en chat global
+    npcSendChat(npc, broadcast) {
+        const messages = [
+            '¿Alguien tiene comida extra?',
+            'He visto movimiento extraño afuera.',
+            'Necesito ayuda con una expedición.',
+            '¿Cuánto tiempo llevamos aquí ya?',
+            'Deberíamos organizarnos mejor.',
+            '¿Algún plan para hoy?',
+            'Vi zombies cerca del perímetro.',
+            'Alguien dejó la puerta abierta anoche...',
+            'Necesito descansar un poco.',
+            '¿Hay noticias del exterior?',
+            'Creo que deberíamos fortalecer las defensas.',
+            '¿Qué comeremos hoy?',
+        ];
+
+        const message = messages[Math.floor(Math.random() * messages.length)];
+
+        broadcast({
+            type: 'chat',
+            nombre: `🤖 ${npc.nombre}`,
+            mensaje: message,
+            isNPC: true
+        });
+    }
+
+    // NPCs se unen a juegos
+    npcJoinGame(npc, broadcast, activeGames) {
+        // Buscar juegos que aceptan más jugadores
+        const openGames = activeGames.filter(g =>
+            g.status === 'waiting' &&
+            g.players.length < g.maxPlayers &&
+            !g.players.some(p => p.id.startsWith('npc_'))
+        );
+
+        if (openGames.length === 0) return;
+
+        const game = openGames[Math.floor(Math.random() * openGames.length)];
+
+        // Agregar NPC al juego
+        game.players.push({
+            id: `npc_${npc.id}`,
+            nombre: `🤖 ${npc.nombre}`,
+            bet: Math.floor(Math.random() * 5) + 1, // 1-5 de apuesta
+            isNPC: true
+        });
+
+        // Incrementar pot
+        const betAmount = game.players[game.players.length - 1].bet;
+        game.pot.comida = (game.pot.comida || 0) + betAmount;
+
+        broadcast({
+            type: 'game:updated',
+            game: {
+                id: game.id,
+                type: game.type,
+                players: game.players.length,
+                pot: game.pot,
+                status: game.status
+            },
+            action: 'joined',
+            joiner: npc.nombre
+        });
+
+        broadcast({
+            type: 'chat',
+            nombre: `🎲 Sistema`,
+            mensaje: `🤖 ${npc.nombre} se unió a ${game.type}`,
+            isNPC: true
+        });
+    }
+
+    // NPCs crean juegos nuevos
+    npcCreateGame(npc, broadcast, activeGames) {
+        // No crear juego si ya hay muchos activos
+        if (activeGames.length >= 6) return;
+
+        const gameTypes = ['poker', 'dice', 'roulette', 'blackjack'];
+        const gameNames = { poker: 'Póker', dice: 'Dados', roulette: 'Ruleta', blackjack: 'Blackjack' };
+        const gameMaxPlayers = { poker: 6, dice: 4, roulette: 8, blackjack: 5 };
+        const gameMinPlayers = { poker: 2, dice: 2, roulette: 1, blackjack: 1 };
+
+        const type = gameTypes[Math.floor(Math.random() * gameTypes.length)];
+        const bet = Math.floor(Math.random() * 5) + 2; // 2-6 de apuesta inicial
+
+        const newGame = {
+            id: `game_npc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: type,
+            name: gameNames[type],
+            players: [{
+                id: `npc_${npc.id}`,
+                nombre: `🤖 ${npc.nombre}`,
+                bet: bet,
+                isNPC: true
+            }],
+            pot: { comida: bet },
+            status: 'waiting',
+            minPlayers: gameMinPlayers[type],
+            maxPlayers: gameMaxPlayers[type],
+            createdBy: `npc_${npc.id}`,
+            createdAt: Date.now()
+        };
+
+        activeGames.push(newGame);
+
+        broadcast({
+            type: 'game:updated',
+            game: {
+                id: newGame.id,
+                type: newGame.type,
+                players: newGame.players.length,
+                pot: newGame.pot,
+                status: newGame.status
+            },
+            action: 'created',
+            creator: npc.nombre
+        });
+
+        broadcast({
+            type: 'chat',
+            nombre: `🎲 Sistema`,
+            mensaje: `🤖 ${npc.nombre} creó una partida de ${gameNames[type]}. ¡Únete!`,
+            isNPC: true
+        });
+    }
+
+    // NPCs comentan en posts
+    npcCommentPost(npc, broadcast, postsDB) {
+        if (postsDB.length === 0) return;
+
+        const post = postsDB[Math.floor(Math.random() * Math.min(5, postsDB.length))]; // Comentar en posts recientes
+
+        const comments = [
+            'Interesante...',
+            'Yo también lo noté.',
+            'Ten cuidado con eso.',
+            'Buena información.',
+            '¿Estás seguro?',
+            'Gracias por compartir.',
+            'Deberíamos investigar más.',
+            'No estoy tan seguro de eso.',
+            'Tiene sentido.',
+            '¿Alguien más puede confirmarlo?',
+        ];
+
+        const comment = {
+            id: `comment_npc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            authorId: `npc_${npc.id}`,
+            authorName: `🤖 ${npc.nombre}`,
+            content: comments[Math.floor(Math.random() * comments.length)],
+            timestamp: Date.now(),
+            isNPC: true
+        };
+
+        post.comments.push(comment);
+
+        broadcast({
+            type: 'fogata:comment_added',
+            postId: post.id,
+            comment: comment,
+            commentCount: post.comments.length
+        });
+    }
+
+    // NPCs dan like a posts
+    npcLikePost(npc, broadcast, postsDB) {
+        if (postsDB.length === 0) return;
+
+        const post = postsDB[Math.floor(Math.random() * Math.min(10, postsDB.length))];
+        const npcUserId = `npc_${npc.id}`;
+
+        if (post.likes.includes(npcUserId)) return; // Ya le dio like
+
+        post.likes.push(npcUserId);
+
+        broadcast({
+            type: 'fogata:like_update',
+            postId: post.id,
+            likes: post.likes.length
+        });
     }
 
     // ===== OBTENER ESTADO DEL MUNDO (MEJORADO) =====

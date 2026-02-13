@@ -7,6 +7,7 @@ import { readFileSync } from 'fs';
 
 // Importar sistemas CORE
 import db from './db/index.js';
+import survivalDB from './db/survivalDB.js';
 import gameWebSocket from './ws.js';
 
 // Importar NUEVOS sistemas (flag-based)
@@ -61,6 +62,134 @@ app.get('/api/player/:id', (req, res) => {
 app.get('/api/events/:locationId', (req, res) => {
     const events = eventManager.getActiveEvents(req.params.locationId);
     res.json(events);
+});
+
+// ========== RUTAS DE AUTENTICACIÓN ==========
+
+// Registro
+app.post('/api/auth/register', (req, res) => {
+    const { username, password } = req.body;
+    const result = survivalDB.crearUsuario(username, password);
+    res.json(result);
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = survivalDB.loginUsuario(username, password);
+
+    if (user) {
+        const personajes = survivalDB.obtenerPersonajes(user.id);
+        res.json({ success: true, user, personajes });
+    } else {
+        res.json({ success: false, error: 'Credenciales inválidas' });
+    }
+});
+
+// ========== RUTAS DE PERSONAJES ==========
+
+// Crear personaje
+app.post('/api/personaje/crear', (req, res) => {
+    const { usuarioId, nombre, clase, fuerza, resistencia, agilidad, inteligencia, avatar, color } = req.body;
+
+    const result = survivalDB.crearPersonaje(usuarioId, {
+        nombre,
+        clase,
+        fuerza: fuerza || 5,
+        resistencia: resistencia || 5,
+        agilidad: agilidad || 5,
+        inteligencia: inteligencia || 5,
+        avatar,
+        color
+    });
+
+    if (result.success) {
+        const personaje = survivalDB.obtenerPersonaje(result.id);
+        res.json({ success: true, personaje });
+    } else {
+        res.json(result);
+    }
+});
+
+// Obtener personajes de un usuario
+app.get('/api/personajes/:usuarioId', (req, res) => {
+    const personajes = survivalDB.obtenerPersonajes(req.params.usuarioId);
+    res.json({ personajes });
+});
+
+// Cargar personaje en el mundo
+app.post('/api/personaje/load', (req, res) => {
+    const { personajeId } = req.body;
+    const personaje = survivalDB.obtenerPersonaje(personajeId);
+
+    if (!personaje) {
+        return res.json({ success: false, error: 'Personaje no encontrado' });
+    }
+
+    // Crear o actualizar jugador en la base de datos principal
+    const playerId = `player_${personajeId}`;
+
+    // Verificar si ya existe
+    let player = db.prepare('SELECT * FROM players WHERE alias = ?').get(personaje.nombre);
+
+    if (!player) {
+        // Crear jugador nuevo
+        const result = db.prepare(`
+            INSERT INTO players (alias, lugar_actual, nivel, experiencia, stats, estado_emocional)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+            personaje.nombre,
+            personaje.locacion || 'hospital',
+            personaje.nivel,
+            personaje.xp,
+            JSON.stringify({
+                salud: personaje.salud,
+                salud_max: 100 + (personaje.resistencia * 10),
+                energia: 100,
+                energia_max: 100,
+                resistencia: personaje.resistencia,
+                fuerza: personaje.fuerza,
+                defensa: personaje.resistencia,
+                velocidad: personaje.agilidad,
+                carisma: 5,
+                empatia: 5,
+                intimidacion: personaje.fuerza,
+                astucia: personaje.inteligencia,
+                percepcion: personaje.inteligencia,
+                suerte: 5,
+                estres: 0
+            }),
+            JSON.stringify({
+                miedo: 5,
+                confianza: 7,
+                esperanza: 8,
+                desesperacion: 2
+            })
+        );
+
+        player = db.prepare('SELECT * FROM players WHERE id = ?').get(result.lastInsertRowid);
+    }
+
+    // Actualizar última conexión
+    db.prepare('UPDATE players SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(player.id);
+
+    // Parsear stats
+    player.stats = JSON.parse(player.stats);
+    player.estado_emocional = JSON.parse(player.estado_emocional);
+
+    // Agregar info del personaje original
+    player.dbId = personajeId;
+    player.avatar = personaje.avatar;
+    player.color = personaje.color;
+    player.clase = personaje.clase;
+
+    res.json({
+        success: true,
+        player: {
+            id: playerId,
+            ...player
+        }
+    });
 });
 
 // Ruta principal

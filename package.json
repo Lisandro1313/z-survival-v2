@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server/survival_mvp.js",
     "dev": "nodemon server/survival_mvp.js",
-    "old": "node server/index_v2.js"
+    "mundo-vivo": "node server/index.js"
   },
   "keywords": ["zombie", "survival", "multiplayer", "websocket", "rpg", "cooperative"],
   "author": "",
