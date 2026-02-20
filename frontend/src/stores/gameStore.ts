@@ -9,7 +9,14 @@
  */
 
 import { create } from 'zustand';
-import type { Player, Node, UIState, Notification, RadioDevice, RadioMessage } from '../types';
+import type { Player, Node, UIState, Notification, RadioDevice, RadioMessage, Mission, MissionPriority } from '../types';
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  type: 'info' | 'success' | 'warning' | 'error' | 'combat' | 'social' | 'ai';
+  message: string;
+}
 
 interface GameState {
   // Auth
@@ -24,9 +31,19 @@ interface GameState {
   currentNode: Node | null;
   nearbyNodes: Node[];
   onlinePlayers: Player[];
+  time: number;
+  weather: string;
+  
+  // Logs
+  logs: LogEntry[];
   
   // Radio
   radioMessages: RadioMessage[];
+  
+  // Missions (FASE 11)
+  missions: Mission[];
+  myMissions: Mission[];
+  missionFilter: 'all' | MissionPriority;
   
   // UI
   ui: UIState;
@@ -46,15 +63,34 @@ interface GameState {
   clearRadioMessages: () => void;
   setEquippedRadio: (radio: RadioDevice | null) => void;
   
+  // Actions - Missions (FASE 11)
+  setMissions: (missions: Mission[]) => void;
+  setMyMissions: (missions: Mission[]) => void;
+  setMissionFilter: (filter: 'all' | MissionPriority) => void;
+  addMission: (mission: Mission) => void;
+  updateMission: (missionId: string, updates: Partial<Mission>) => void;
+  removeMission: (missionId: string) => void;
+  
   // Actions - UI
   setActivePanel: (panel: UIState['activePanel']) => void;
   toggleMenu: () => void;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
+  
+  // Actions - Logs
+  addLog: (type: LogEntry['type'], message: string) => void;
+  clearLogs: () => void;
+  
+  // Actions - World Time
+  setTime: (time: number) => void;
+  setWeather: (weather: string) => void;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   // Initial State
+  missions: [],
+  myMissions: [],
+  missionFilter: 'all',
   isAuthenticated: false,
   isLoading: false,
   token: localStorage.getItem('token'),
@@ -63,6 +99,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   nearbyNodes: [],
   onlinePlayers: [],
   radioMessages: [],
+  time: Date.now(),
+  weather: 'clear',
+  logs: [],
   ui: {
     activePanel: null,
     isMenuOpen: false,
@@ -141,6 +180,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
+  // Mission Actions (FASE 11)
+  setMissions: (missions: Mission[]) => set({ missions }),
+  
+  setMyMissions: (missions: Mission[]) => set({ myMissions: missions }),
+  
+  setMissionFilter: (filter: 'all' | MissionPriority) => set({ missionFilter: filter }),
+  
+  addMission: (mission: Mission) => {
+    set((state) => ({
+      missions: [...state.missions, mission],
+    }));
+  },
+  
+  updateMission: (missionId: string, updates: Partial<Mission>) => {
+    set((state) => ({
+      missions: state.missions.map((m) =>
+        m.id === missionId ? { ...m, ...updates } : m
+      ),
+      myMissions: state.myMissions.map((m) =>
+        m.id === missionId ? { ...m, ...updates } : m
+      ),
+    }));
+  },
+  
+  removeMission: (missionId: string) => {
+    set((state) => ({
+      missions: state.missions.filter((m) => m.id !== missionId),
+      myMissions: state.myMissions.filter((m) => m.id !== missionId),
+    }));
+  },
+
   // UI Actions
   setActivePanel: (panel: UIState['activePanel']) => {
     set((state) => ({
@@ -181,5 +251,32 @@ export const useGameStore = create<GameState>((set, get) => ({
         notifications: state.ui.notifications.filter((n) => n.id !== id),
       },
     }));
+  },
+  
+  // Logs Actions
+  addLog: (type: LogEntry['type'], message: string) => {
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substring(7),
+      timestamp: Date.now(),
+      type,
+      message,
+    };
+    
+    set((state) => ({
+      logs: [...state.logs, newLog].slice(-100), // Keep last 100 logs
+    }));
+  },
+  
+  clearLogs: () => {
+    set({ logs: [] });
+  },
+  
+  // World Time Actions
+  setTime: (time: number) => {
+    set({ time });
+  },
+  
+  setWeather: (weather: string) => {
+    set({ weather });
   },
 }));

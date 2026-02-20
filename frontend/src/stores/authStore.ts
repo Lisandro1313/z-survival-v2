@@ -7,15 +7,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface User {
-  userId: number;
+  id: number;
   username: string;
 }
 
 interface AuthState {
   // Estado
   user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -24,9 +22,8 @@ interface AuthState {
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
-  refreshAccessToken: () => Promise<boolean>;
   clearError: () => void;
-  setTokens: (accessToken: string, refreshToken: string, user: User) => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -34,8 +31,6 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       // Estado inicial
       user: null,
-      accessToken: null,
-      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -54,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
               'Accept': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ usuario: username, password })
+            body: JSON.stringify({ username, password })
           });
 
           console.log('📥 Response status:', response.status);
@@ -68,16 +63,17 @@ export const useAuthStore = create<AuthState>()(
           const data = await response.json();
           console.log('✅ Login exitoso:', data);
 
-          set({
-            user: { userId: data.userId, username: data.usuario },
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          });
-
-          return true;
+          if (data.success && data.user) {
+            set({
+              user: { id: data.user.id, username: data.user.username },
+              isAuthenticated: true,
+              isLoading: false,
+              error: null
+            });
+            return true;
+          } else {
+            throw new Error('Login failed - invalid response');
+          }
 
         } catch (error: any) {
           console.error('❌ Login error:', error);
@@ -104,7 +100,7 @@ export const useAuthStore = create<AuthState>()(
               'Accept': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ usuario: username, password })
+            body: JSON.stringify({ username, password })
           });
 
           console.log('📥 Response status:', response.status);
@@ -118,16 +114,17 @@ export const useAuthStore = create<AuthState>()(
           const data = await response.json();
           console.log('✅ Registro exitoso:', data);
 
-          set({
-            user: { userId: data.userId, username: data.usuario },
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          });
-
-          return true;
+          if (data.success && data.id) {
+            set({
+              user: { id: data.id, username },
+              isAuthenticated: true,
+              isLoading: false,
+              error: null
+            });
+            return true;
+          } else {
+            throw new Error('Registration failed - invalid response');
+          }
 
         } catch (error: any) {
           console.error('❌ Register error:', error);
@@ -144,50 +141,9 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         set({
           user: null,
-          accessToken: null,
-          refreshToken: null,
           isAuthenticated: false,
           error: null
         });
-      },
-
-      // Refresh access token
-      refreshAccessToken: async () => {
-        const { refreshToken } = get();
-        
-        if (!refreshToken) {
-          return false;
-        }
-
-        try {
-          const response = await fetch('http://localhost:3000/api/auth/refresh', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ refreshToken })
-          });
-
-          if (!response.ok) {
-            // Refresh token inválido o expirado
-            get().logout();
-            return false;
-          }
-
-          const data = await response.json();
-
-          set({
-            accessToken: data.accessToken
-          });
-
-          return true;
-
-        } catch (error) {
-          get().logout();
-          return false;
-        }
       },
 
       // Clear error
@@ -195,11 +151,9 @@ export const useAuthStore = create<AuthState>()(
         set({ error: null });
       },
 
-      // Set tokens (para uso interno)
-      setTokens: (accessToken: string, refreshToken: string, user: User) => {
+      // Set user (for manual updates)
+      setUser: (user: User) => {
         set({
-          accessToken,
-          refreshToken,
           user,
           isAuthenticated: true
         });
@@ -210,29 +164,10 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         // Solo persiste estos campos
         user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated
       })
     }
   )
 );
-
-// Helper para obtener el access token actual
-export const getAccessToken = () => useAuthStore.getState().accessToken;
-
-// Helper para verificar si el token está próximo a expirar
-export const isTokenExpiringSoon = (token: string): boolean => {
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const exp = payload.exp * 1000; // Convertir a milliseconds
-    const now = Date.now();
-    const timeUntilExpiry = exp - now;
-    
-    return timeUntilExpiry < 2 * 60 * 1000; // Menos de 2 minutos
-  } catch {
-    return true;
-  }
-};
 
 export default useAuthStore;

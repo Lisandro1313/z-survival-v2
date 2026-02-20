@@ -4,6 +4,7 @@
 
 import { useGameStore } from '../../stores/gameStore';
 import RadioPanel from '../ui/RadioPanel';
+import MissionPanel from '../ui/MissionPanel';
 import ChatWindow from '../ui/ChatWindow';
 import PlayerInfo from '../ui/PlayerInfo';
 import NodeInfo from '../ui/NodeInfo';
@@ -51,6 +52,7 @@ function GameScreen() {
 
         <div className="game-right">
           {ui.activePanel === 'radio' && <RadioPanel />}
+          {ui.activePanel === 'missions' && <MissionPanel />}
           {ui.activePanel === null && (
             <div className="panel-placeholder">
               <p>Selecciona un panel</p>
@@ -80,6 +82,12 @@ function QuickActions() {
         onClick={() => setActivePanel(ui.activePanel === 'radio' ? null : 'radio')}
       >
         📻 Radio
+      </button>
+      <button 
+        className={ui.activePanel === 'missions' ? 'active' : ''}
+        onClick={() => setActivePanel(ui.activePanel === 'missions' ? null : 'missions')}
+      >
+        🎯 Misiones
       </button>
       <button onClick={() => setActivePanel('inventory')}>
         🎒 Inventario

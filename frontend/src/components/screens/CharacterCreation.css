@@ -1,0 +1,677 @@
+/* ================================================
+   CHARACTER CREATION WIZARD - DISEÑO COMPLETO
+   ================================================ */
+
+/* Reset global */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Contenedor principal - Fullscreen overlay */
+.character-creation {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 1000;
+  color: #00ff00;
+}
+
+/* Header con título y steps */
+.creation-header {
+  width: 100%;
+  max-width: 800px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.creation-header h1 {
+  color: #ffff00;
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+/* Indicador de pasos */
+.steps-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.step {
+  padding: 10px 20px;
+  background: rgba(42, 42, 60, 0.8);
+  border: 2px solid #444;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #888;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  border-color: #00ff00;
+  color: #00ff00;
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+  font-weight: bold;
+}
+
+/* Panel principal del wizard */
+.creation-step {
+  width: 100%;
+  max-width: 800px;
+  background: rgba(20, 20, 40, 0.95);
+  border: 3px solid #00ff00;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 0 40px rgba(0, 255, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+
+/* Formulario - Input de nombre */
+.form-group {
+  margin-bottom: 30px;
+}
+
+.form-group label {
+  display: block;
+  color: #ffff00;
+  font-size: 1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  background: #000;
+  color: #00ff00;
+  border: 2px solid #00ff00;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+}
+
+/* Título de sección (h3) */
+.creation-step h3 {
+  color: #ffff00;
+  font-size: 1.3rem;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: bold;
+  margin: 25px 0 20px 0;
+}
+
+/* ========================================
+   PASO 1: CLASES
+   ======================================== */
+
+.clase-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.clase-card {
+  background: #1a1a2e;
+  border: 3px solid #444;
+  border-radius: 10px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  user-select: none;
+}
+
+.clase-card:hover {
+  border-color: #00ff00;
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(0, 255, 0, 0.4);
+}
+
+.clase-card.selected {
+  border-color: #00ffff;
+  background: #2a2a4e;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+}
+
+.clase-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.clase-name {
+  font-size: 1.2rem;
+  color: #00ff00;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.clase-desc {
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.clase-bonus {
+  font-size: 0.8rem;
+  color: #ffaa00;
+  padding-top: 10px;
+  border-top: 1px solid #444;
+  width: 100%;
+}
+
+/* ========================================
+   PASO 2: ATRIBUTOS
+   ======================================== */
+
+.puntos-restantes {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #ffff00;
+  background: #1a1a2e;
+  border: 3px solid #ffff00;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 0 20px rgba(255, 255, 0, 0.3);
+}
+
+.puntos-numero {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #00ffff;
+  display: inline-block;
+  margin-left: 10px;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.atributos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.atributo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1a1a2e;
+  border: 3px solid #444;
+  border-radius: 10px;
+  padding: 15px 20px;
+  transition: all 0.3s ease;
+}
+
+.atributo:hover {
+  border-color: #00ff00;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+}
+
+.atributo-nombre {
+  flex: 1;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #00ff00;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.atributo-desc {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: #888;
+  margin-left: 10px;
+}
+
+.atributo-control {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.atributo-control button {
+  width: 45px;
+  height: 45px;
+  background: #0a0a0a;
+  border: 3px solid #00ff00;
+  color: #00ff00;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.atributo-control button:hover:not(:disabled) {
+  background: #00ff00;
+  color: #000;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.6);
+}
+
+.atributo-control button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: #444;
+  color: #444;
+}
+
+.atributo-valor {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #00ffff;
+  min-width: 50px;
+  text-align: center;
+}
+
+/* ========================================
+   PASO 3: APARIENCIA
+   ======================================== */
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.avatar-option {
+  font-size: 2.5rem;
+  padding: 15px;
+  background: #1a1a2e;
+  border: 3px solid #444;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s ease;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.avatar-option:hover {
+  border-color: #00ff00;
+  transform: scale(1.1);
+  background: #2a2a4e;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.avatar-option.selected {
+  border-color: #00ffff;
+  background: #2a2a4e;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.8);
+  transform: scale(1.15);
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.color-option {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 4px solid #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.color-option:hover {
+  transform: scale(1.2);
+  border-color: #fff;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.color-option.selected {
+  border-color: #fff;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 1);
+  transform: scale(1.3);
+}
+
+/* Preview del personaje */
+.character-preview {
+  background: #0a0a0a;
+  border: 3px solid #00ff00;
+  border-radius: 12px;
+  padding: 25px;
+  text-align: center;
+  margin-bottom: 25px;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+}
+
+.preview-avatar {
+  font-size: 5rem;
+  line-height: 1;
+  margin-bottom: 15px;
+}
+
+.preview-name {
+  font-size: 1.6rem;
+  color: #00ff00;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.preview-clase {
+  font-size: 1.1rem;
+  color: #ffaa00;
+  font-weight: 500;
+}
+
+/* ========================================
+   BOTONES
+   ======================================== */
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.btn-primary,
+.btn-secondary {
+  flex: 1;
+  padding: 15px 25px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 3px solid;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  user-select: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00aa00 0%, #005500 100%);
+  color: #fff;
+  border-color: #00ff00;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00ff00 0%, #00aa00 100%);
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+  transform: translateY(-3px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.8);
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, #555 0%, #333 100%);
+  border-color: #888;
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #777 0%, #555 100%);
+  box-shadow: 0 0 20px rgba(136, 136, 136, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ================================================
+   RESPONSIVE DESIGN
+   ================================================ */
+
+/* Tablets (≤1024px) */
+@media (max-width: 1024px) {
+  .creation-header h1 {
+    font-size: 2rem;
+  }
+
+  .creation-step {
+    max-width: 700px;
+    padding: 25px;
+  }
+
+  .clase-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .avatar-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Móviles (≤768px) */
+@media (max-width: 768px) {
+  .character-creation {
+    padding: 15px;
+  }
+
+  .creation-header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+  }
+
+  .steps-indicator {
+    gap: 10px;
+  }
+
+  .step {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+  }
+
+  .creation-step {
+    padding: 20px;
+    border-width: 2px;
+  }
+
+  .form-group label {
+    font-size: 0.95rem;
+  }
+
+  .form-group input {
+    padding: 10px;
+  }
+
+  .creation-step h3 {
+    font-size: 1.1rem;
+    margin: 20px 0 15px 0;
+  }
+
+  .clase-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .clase-card {
+    padding: 15px;
+    min-height: 150px;
+  }
+
+  .clase-icon {
+    font-size: 2.5rem;
+  }
+
+  .clase-name {
+    font-size: 1.1rem;
+  }
+
+  .clase-desc {
+    font-size: 0.8rem;
+  }
+
+  .clase-bonus {
+    font-size: 0.75rem;
+  }
+
+  .puntos-restantes {
+    font-size: 1.3rem;
+    padding: 12px;
+  }
+
+  .puntos-numero {
+    font-size: 2rem;
+  }
+
+  .atributo {
+    padding: 12px 15px;
+    flex-wrap: wrap;
+  }
+
+  .atributo-nombre {
+    font-size: 1rem;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .atributo-control {
+    margin-left: auto;
+  }
+
+  .atributo-control button {
+    width: 42px;
+    height: 42px;
+    font-size: 1.3rem;
+  }
+
+  .atributo-valor {
+    font-size: 1.6rem;
+  }
+
+  .avatar-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .avatar-option {
+    font-size: 2rem;
+    padding: 12px;
+  }
+
+  .color-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .preview-avatar {
+    font-size: 4rem;
+  }
+
+  .preview-name {
+    font-size: 1.4rem;
+  }
+
+  .preview-clase {
+    font-size: 1rem;
+  }
+
+  .button-group {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 12px 20px;
+    font-size: 1rem;
+  }
+}
+
+/* Móviles pequeños (≤480px) */
+@media (max-width: 480px) {
+  .character-creation {
+    padding: 10px;
+  }
+
+  .creation-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .step {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+
+  .creation-step {
+    padding: 15px;
+  }
+
+  .clase-card {
+    min-height: 130px;
+    padding: 12px;
+  }
+
+  .clase-icon {
+    font-size: 2rem;
+  }
+
+  .avatar-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .avatar-option {
+    font-size: 1.8rem;
+    padding: 10px;
+  }
+
+  .preview-avatar {
+    font-size: 3.5rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 10px 15px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Pantallas grandes (≥1400px) */
+@media (min-width: 1400px) {
+  .creation-step {
+    max-width: 900px;
+  }
+}

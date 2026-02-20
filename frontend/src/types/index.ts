@@ -121,6 +121,17 @@ export type WSMessageType =
   | 'notification:new'
   | 'notification:read'
   | 'notification:read_all'
+  | 'getMissions'
+  | 'acceptMission'
+  | 'abandonMission'
+  | 'completeMission'
+  | 'missions:list'
+  | 'mission:new'
+  | 'mission:accepted'
+  | 'mission:abandoned'
+  | 'mission:completed'
+  | 'mission:expired'
+  | 'mission:participant_joined'
   | 'combat'
   | 'scavenge'
   | 'error';
@@ -135,7 +146,7 @@ export interface WSMessage {
 // ====================================
 
 export interface UIState {
-  activePanel: 'inventory' | 'radio' | 'map' | 'stats' | null;
+  activePanel: 'inventory' | 'radio' | 'map' | 'stats' | 'missions' | null;
   isMenuOpen: boolean;
   notifications: Notification[];
 }
@@ -145,4 +156,47 @@ export interface Notification {
   type: 'info' | 'warning' | 'error' | 'success';
   message: string;
   timestamp: number;
+}
+
+// ====================================
+// MISSION TYPES (FASE 11)
+// ====================================
+
+export type MissionType = 
+  | 'resource_shortage' 
+  | 'zombie_threat' 
+  | 'npc_help' 
+  | 'exploration' 
+  | 'construction' 
+  | 'trade' 
+  | 'defense';
+
+export type MissionPriority = 'urgent' | 'normal' | 'optional';
+
+export interface Mission {
+  id: string;
+  type: MissionType;
+  title: string;
+  description: string;
+  icon: string;
+  priority: MissionPriority;
+  timeLimit: number | null;
+  expiresAt: number | null;
+  objectives: Record<string, any>;
+  progress: number;
+  progressDetail?: Record<string, number>;
+  reward: MissionReward;
+  participants: string[];
+  collective?: boolean;
+  contributions?: Record<string, number>;
+  created: number;
+  status?: 'active' | 'completed' | 'expired';
+}
+
+export interface MissionReward {
+  xp?: number;
+  tokens?: number;
+  items?: Record<string, number>;
+  relation_boost?: Record<string, number>;
+  collective_bonus?: string;
 }

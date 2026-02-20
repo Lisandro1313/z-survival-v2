@@ -1,0 +1,382 @@
+/**
+ * 🎯 MISSION PANEL STYLES (FASE 11)
+ */
+
+/* ====================================
+   PANEL CONTAINER
+   ==================================== */
+
+.mission-panel {
+  padding: 1.5rem;
+  height: 100%;
+  overflow-y: auto;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #e0e0e0;
+}
+
+/* ====================================
+   HEADER
+   ==================================== */
+
+.mission-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #444;
+}
+
+.mission-panel-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #f39c12;
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+}
+
+.mission-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #bbb;
+}
+
+.mission-stats span {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem 0.8rem;
+  border-radius: 12px;
+  font-weight: bold;
+}
+
+/* ====================================
+   FILTERS
+   ==================================== */
+
+.mission-filters {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.mission-filter {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #555;
+  color: #e0e0e0;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.mission-filter:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mission-filter.active {
+  background: rgba(243, 156, 18, 0.2);
+  border-color: #f39c12;
+  color: #f39c12;
+  box-shadow: 0 0 15px rgba(243, 156, 18, 0.4);
+}
+
+/* ====================================
+   SECTIONS
+   ==================================== */
+
+.mission-section {
+  margin-bottom: 2rem;
+}
+
+.mission-section-title {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #3498db;
+  border-left: 4px solid #3498db;
+  padding-left: 0.8rem;
+}
+
+/* ====================================
+   MISSION GRID
+   ==================================== */
+
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.2rem;
+}
+
+/* ====================================
+   MISSION CARD
+   ==================================== */
+
+.mission-card {
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid #444;
+  border-left: 5px solid #f39c12;
+  border-radius: 10px;
+  padding: 1.2rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mission-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border-color: #555;
+}
+
+/* ====================================
+   CARD HEADER
+   ==================================== */
+
+.mission-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.mission-icon {
+  font-size: 2.5rem;
+  filter: drop-shadow(0 0 8px rgba(243, 156, 18, 0.5));
+}
+
+.mission-title-wrapper {
+  flex: 1;
+}
+
+.mission-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #f39c12;
+  font-weight: bold;
+}
+
+.mission-priority {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+/* ====================================
+   CARD CONTENT
+   ==================================== */
+
+.mission-description {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #bbb;
+  margin-bottom: 1rem;
+}
+
+.mission-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.mission-timer {
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+.mission-participants {
+  color: #3498db;
+}
+
+/* ====================================
+   PROGRESS BAR
+   ==================================== */
+
+.mission-progress {
+  margin-bottom: 1rem;
+}
+
+.mission-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+
+.mission-progress-fill {
+  height: 100%;
+  background: #f39c12;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.mission-progress-text {
+  font-size: 0.8rem;
+  color: #999;
+  font-weight: bold;
+}
+
+/* ====================================
+   REWARDS
+   ==================================== */
+
+.mission-rewards {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  border-radius: 6px;
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #2ecc71;
+  font-weight: 600;
+}
+
+/* ====================================
+   ACTIONS
+   ==================================== */
+
+.mission-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.mission-btn {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mission-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mission-btn:active {
+  transform: translateY(0);
+}
+
+.mission-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.mission-btn-accept {
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  color: white;
+}
+
+.mission-btn-accept:hover {
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  box-shadow: 0 0 15px rgba(46, 204, 113, 0.5);
+}
+
+.mission-btn-complete {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+}
+
+.mission-btn-complete:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
+  box-shadow: 0 0 15px rgba(52, 152, 219, 0.5);
+}
+
+.mission-btn-abandon {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+}
+
+.mission-btn-abandon:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+}
+
+/* ====================================
+   EMPTY STATE
+   ==================================== */
+
+.mission-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #777;
+}
+
+.mission-empty p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.mission-empty-hint {
+  font-size: 0.85rem;
+  color: #555;
+  font-style: italic;
+}
+
+/* ====================================
+   SCROLLBAR
+   ==================================== */
+
+.mission-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mission-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.mission-panel::-webkit-scrollbar-thumb {
+  background: rgba(243, 156, 18, 0.5);
+  border-radius: 4px;
+}
+
+.mission-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(243, 156, 18, 0.7);
+}
+
+/* ====================================
+   RESPONSIVE
+   ==================================== */
+
+@media (max-width: 768px) {
+  .mission-panel {
+    padding: 1rem;
+  }
+
+  .mission-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .mission-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-filters {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.5rem;
+  }
+
+  .mission-filter {
+    flex-shrink: 0;
+  }
+}

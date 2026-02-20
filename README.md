@@ -51,6 +51,75 @@
 - **Efectos permanentes** aplicados al refugio
 - **Sistema de niveles** - Mejora estructuras hasta nivel 3-5
 
+### ⚔️ FASE 13: Combate Avanzado
+
+- **10 tipos de zombies únicos** con habilidades especiales
+  - Normales, Corredores, Gritones
+  - Tanque, Explosivo, Tóxico, Radiactivo
+  - Cazador, Berserker, Abominación (mini-boss)
+- **13 armas con stats detallados**
+  - 6 cuerpo a cuerpo (puños → sierra eléctrica)
+  - 7 a distancia (pistola → lanzallamas)
+  - Stats: daño, crítico, precisión, velocidad
+- **6 tipos de armadura** - Trade-off defensa vs agilidad
+- **8 habilidades especiales** con cooldowns y costos
+- **Sistema de efectos de estado** - Sangrado, veneno, aturdimiento
+- **Loot con rareza** - Común → Legendario
+
+### 🔨 FASE 14: Crafteo Avanzado
+
+- **40+ recetas organizadas** por categoría
+  - Armas (10), Armaduras (7), Munición (5)
+  - Consumibles (8), Explosivos (5), Utilidades (5)
+- **Sistema de mejoras** - 2-3 tiers por item
+- **12 modificadores aplicables** - Mejoras permanentes acumulativas
+- **7 workbenches especializados**
+  - Básico (nivel 1) → Maestro (nivel 15)
+  - Especializaciones: Armero, Médico, Químico, Electrónico
+- **Sistema de rareza** con stats escalados
+
+### 💰 FASE 15: Economía y Comercio
+
+- **Moneda "caps"** (temática post-apocalíptica)
+- **80+ items con precios dinámicos** por rareza
+- **Comercio con NPCs** - Compra/venta con inventarios únicos
+- **Marketplace jugador-a-jugador**
+  - Venta instantánea y sistema de subastas
+  - Escrow system (items bloqueados)
+  - Búsqueda y filtros avanzados
+  - Impuesto 10% en transacciones
+- **Recompensas automáticas integradas**
+  - Zombies, quests, crafting, login diario
+- **UI profesional** con 3 modales dedicados
+
+### 🛡️ FASE 16: Raids PvE y Defensa Cooperativa
+
+- **4 tipos de raids** con dificultad escalable
+  - 🌒 Nocturno (⭐) - 5 oleadas, 75 zombies
+  - ⚡ Relámpago (⭐⭐) - 3 oleadas rápidas
+  - 🔥 Infernal (⭐⭐⭐⭐) - 10 oleadas, 200+ zombies
+  - 💀 Horda (⭐⭐⭐⭐⭐) - 15 oleadas, 500+ zombies + mini-bosses
+- **Sistema de oleadas** con descansos de 30 seg
+- **Defensa cooperativa del refugio**
+  - HP del refugio basado en construcciones
+  - Daño progresivo por zombies no detenidos
+  - Reparaciones durante combate
+- **Trampas y torres defensivas**
+  - 5 trampas consumibles (púas, minas, alambre, molotovs, red eléctrica)
+  - 4 torres permanentes (ballesta, fuego, MG, tesla)
+- **Sistema de participación**
+  - Tracking de daño, kills, reparaciones
+  - 5 rangos: Espectador → Participante → Defensor → Héroe → MVP
+  - Recompensas proporcionales con multiplicador de dificultad
+- **Scheduling automático**
+  - Raids nocturnos cada 3 horas de juego
+  - Raids infernales cada 12 horas reales
+  - Anuncio 5 minutos antes del inicio
+- **Persistencia completa**
+  - Historial de raids
+  - Stats globales por jugador
+  - Top defensores
+
 ### 🤝 Multijugador Cooperativo
 
 - **Quests cooperativas** con votación en tiempo real

@@ -1,0 +1,49 @@
+.minimap {
+  width: 150px;
+  height: 150px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+
+.minimap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+}
+
+.minimap-node {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.minimap-node:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--neon);
+}
+
+.minimap-node.current {
+  background: rgba(20, 255, 131, 0.2);
+  border-color: var(--neon);
+  box-shadow: 0 0 8px rgba(20, 255, 131, 0.4);
+}
+
+.minimap-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 12px;
+}

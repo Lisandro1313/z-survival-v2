@@ -1,0 +1,144 @@
+.progress-bar-wrapper {
+  width: 100%;
+}
+
+.progress-bar-wrapper--sm {
+  font-size: var(--font-size-xs);
+}
+
+.progress-bar-wrapper--md {
+  font-size: var(--font-size-sm);
+}
+
+.progress-bar-wrapper--lg {
+  font-size: var(--font-size-md);
+}
+
+.progress-bar__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+  gap: var(--spacing-sm);
+}
+
+.progress-bar__label {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-bar__values {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.progress-bar__numbers,
+.progress-bar__percentage {
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-bar {
+  position: relative;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-bar-wrapper--sm .progress-bar {
+  height: 6px;
+}
+
+.progress-bar-wrapper--md .progress-bar {
+  height: 12px;
+}
+
+.progress-bar-wrapper--lg .progress-bar {
+  height: 20px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Variants */
+.progress-bar--health .progress-bar__fill {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+}
+
+.progress-bar--hunger .progress-bar__fill {
+  background: linear-gradient(90deg, #ea580c 0%, #f97316 100%);
+  box-shadow: 0 0 10px rgba(234, 88, 12, 0.5);
+}
+
+.progress-bar--stamina .progress-bar__fill {
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.5);
+}
+
+.progress-bar--xp .progress-bar__fill {
+  background: linear-gradient(90deg, #7c3aed 0%, #a855f7 100%);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+}
+
+.progress-bar--progress .progress-bar__fill {
+  background: linear-gradient(90deg, var(--neon) 0%, #00ff9f 100%);
+  box-shadow: 0 0 10px rgba(0, 255, 127, 0.5);
+}
+
+.progress-bar--danger .progress-bar__fill {
+  background: linear-gradient(90deg, var(--danger) 0%, #ff5555 100%);
+  box-shadow: 0 0 10px rgba(255, 59, 48, 0.5);
+}
+
+/* Animated shimmer effect */
+.progress-bar__fill--animated .progress-bar__shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Low value warning (below 25%) */
+.progress-bar__fill[aria-valuenow]:is([aria-valuenow="0"], [aria-valuenow="1"], [aria-valuenow="2"], [aria-valuenow="3"], [aria-valuenow="4"], [aria-valuenow="5"], [aria-valuenow="6"], [aria-valuenow="7"], [aria-valuenow="8"], [aria-valuenow="9"], [aria-valuenow="10"], [aria-valuenow="11"], [aria-valuenow="12"], [aria-valuenow="13"], [aria-valuenow="14"], [aria-valuenow="15"], [aria-valuenow="16"], [aria-valuenow="17"], [aria-valuenow="18"], [aria-valuenow="19"], [aria-valuenow="20"], [aria-valuenow="21"], [aria-valuenow="22"], [aria-valuenow="23"], [aria-valuenow="24"], [aria-valuenow="25"]) {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

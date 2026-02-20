@@ -1,0 +1,428 @@
+.economy-page {
+  padding: var(--spacing-lg);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.economy-page__header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.economy-page__header h1 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--neon);
+  text-shadow: 0 0 20px rgba(0, 255, 127, 0.5);
+}
+
+.economy-page__balance {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.economy-page__balance-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+}
+
+.economy-page__balance-card .label {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.economy-page__balance-card .value {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--neon);
+}
+
+/* Tabs */
+.economy-page__tabs {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.economy-page__tab {
+  flex: 1;
+  padding: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.economy-page__tab:hover {
+  background: rgba(0, 255, 127, 0.05);
+  border-color: var(--neon);
+  color: var(--text-primary);
+}
+
+.economy-page__tab--active {
+  background: var(--neon);
+  border-color: var(--neon);
+  color: var(--bg);
+}
+
+/* Content */
+.economy-page__content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+/* Shop */
+.economy-page__shop {
+  min-width: 0;
+}
+
+.economy-page__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.economy-page__search {
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.economy-page__search:focus {
+  outline: none;
+  border-color: var(--neon);
+  box-shadow: 0 0 0 2px rgba(0, 255, 127, 0.1);
+}
+
+.economy-page__categories {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.economy-page__category-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.economy-page__category-btn:hover {
+  background: rgba(0, 255, 127, 0.1);
+  border-color: var(--neon);
+  transform: scale(1.1);
+}
+
+.economy-page__category-btn--active {
+  background: var(--neon);
+  border-color: var(--neon);
+  transform: scale(1.1);
+}
+
+/* Items grid */
+.economy-page__items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.economy-page__item {
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.economy-page__item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 255, 127, 0.2);
+}
+
+.economy-page__item--selected {
+  border-color: var(--neon);
+  box-shadow: 0 0 0 2px rgba(0, 255, 127, 0.2);
+}
+
+.economy-page__item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.economy-page__item-category {
+  font-size: 1.5rem;
+}
+
+.economy-page__item-discount {
+  background: var(--danger);
+  color: white;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+}
+
+.economy-page__item h4 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.economy-page__item-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+  min-height: 3em;
+}
+
+.economy-page__item-stock {
+  margin-top: auto;
+}
+
+.economy-page__item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border);
+}
+
+.economy-page__item-price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.economy-page__item-price-old {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.economy-page__item-price-current {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--neon);
+}
+
+.economy-page__item-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.economy-page__item-locked {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius);
+  font-weight: 600;
+  color: var(--warn);
+  pointer-events: none;
+}
+
+/* Sidebar */
+.economy-page__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  position: sticky;
+  top: var(--spacing-md);
+}
+
+/* Cart */
+.economy-page__cart h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--text-primary);
+}
+
+.economy-page__cart-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.economy-page__cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius);
+  gap: var(--spacing-sm);
+}
+
+.economy-page__cart-item-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.economy-page__cart-item-qty {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.economy-page__cart-item-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.economy-page__cart-item-price {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--neon);
+}
+
+.economy-page__cart-item-remove {
+  background: var(--danger);
+  border: none;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all var(--transition);
+}
+
+.economy-page__cart-item-remove:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 8px var(--danger);
+}
+
+.economy-page__cart-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius);
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.economy-page__cart-total .value {
+  color: var(--neon);
+}
+
+.economy-page__cart-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+}
+
+/* Transactions */
+.economy-page__transactions h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--text-primary);
+}
+
+.economy-page__transaction-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.economy-page__transaction {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--border);
+}
+
+.economy-page__transaction-item {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.economy-page__transaction-meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.economy-page__transaction-price {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.economy-page__transaction-price--gain {
+  color: var(--neon);
+}
+
+.economy-page__transactions-empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+}
+
+/* Empty state */
+.economy-page__empty {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .economy-page__content {
+    grid-template-columns: 1fr;
+  }
+
+  .economy-page__sidebar {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .economy-page {
+    padding: var(--spacing-md);
+  }
+
+  .economy-page__items-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .economy-page__sidebar {
+    grid-template-columns: 1fr;
+  }
+}

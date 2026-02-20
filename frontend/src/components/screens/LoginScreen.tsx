@@ -3,6 +3,7 @@
  */
 
 import { useState, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useGameStore } from '../../stores/gameStore';
 import './LoginScreen.css';
@@ -12,6 +13,7 @@ function LoginScreen() {
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   
+  const navigate = useNavigate();
   const { login, register, isLoading, error, clearError } = useAuthStore();
   const { addNotification } = useGameStore();
 
@@ -56,6 +58,9 @@ function LoginScreen() {
           type: 'success',
           message: isRegistering ? '✅ ¡Registro exitoso!' : '✅ ¡Bienvenido!',
         });
+        
+        // Navegar a selección de personaje
+        navigate('/character');
       } else {
         // Mostrar el error específico del servidor
         const errorMsg = error || (isRegistering ? 'Error al registrarse' : 'Error al iniciar sesión');

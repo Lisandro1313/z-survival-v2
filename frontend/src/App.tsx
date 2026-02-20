@@ -10,8 +10,23 @@ import CharacterScreen from './components/screens/CharacterScreen';
 import GameScreen from './components/screens/GameScreen';
 import LoadingScreen from './components/screens/LoadingScreen';
 
+// Layout
+import GameShell from './components/layout/GameShell';
+
 // UI Components
 import Notifications from './components/ui/Notifications';
+
+// Game Modules (placeholders para las rutas)
+import Inventory from './components/game/Inventory';
+import Crafting from './components/game/Crafting';
+import Social from './components/social/Social';
+import Missions from './components/game/Missions';
+import Refuge from './components/game/Refuge';
+import Clan from './components/game/Clan';
+import Trade from './components/game/Trade';
+import Raid from './components/game/Raid';
+import Radio from './components/game/Radio';
+import Narrative from './components/game/Narrative';
 
 function App() {
   const { isAuthenticated, isLoading } = useAuthStore();
@@ -53,10 +68,26 @@ function App() {
         
         {/* Game - Solo si está autenticado Y tiene personaje */}
         <Route 
-          path="/game" 
+          path="/game/*" 
           element={
             isAuthenticated && player 
-              ? <GameScreen /> 
+              ? (
+                <GameShell>
+                  <Routes>
+                    <Route path="/" element={<GameScreen />} />
+                    <Route path="/inventory" element={<Inventory />} />
+                    <Route path="/crafting" element={<Crafting />} />
+                    <Route path="/social" element={<Social />} />
+                    <Route path="/missions" element={<Missions />} />
+                    <Route path="/refuge" element={<Refuge />} />
+                    <Route path="/clan" element={<Clan />} />
+                    <Route path="/trade" element={<Trade />} />
+                    <Route path="/raid" element={<Raid />} />
+                    <Route path="/radio" element={<Radio />} />
+                    <Route path="/narrative" element={<Narrative />} />
+                  </Routes>
+                </GameShell>
+              )
               : <Navigate to={isAuthenticated ? "/character" : "/login"} />
           } 
         />

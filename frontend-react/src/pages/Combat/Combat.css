@@ -1,0 +1,165 @@
+.combat {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-xl);
+  height: 100%;
+}
+
+.combat-inactive {
+  grid-template-columns: 1fr;
+  place-items: center;
+}
+
+.combat-area {
+  display: flex;
+  flex-direction: column;
+}
+
+.combat-enemy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2xl) 0;
+  background: linear-gradient(180deg, rgba(255, 55, 95, 0.1), transparent);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-2xl);
+}
+
+.enemy-avatar {
+  font-size: 120px;
+  margin-bottom: var(--space-lg);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.enemy-info {
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.enemy-info h3 {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--space-sm);
+  color: var(--danger);
+}
+
+.enemy-level {
+  font-size: var(--font-size-md);
+  color: var(--muted);
+  margin-bottom: var(--space-lg);
+}
+
+.hp-bar {
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-sm);
+}
+
+.hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--danger), var(--warn));
+  transition: width 0.3s ease;
+}
+
+.hp-text {
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+}
+
+.combat-actions {
+  margin-top: var(--space-xl);
+}
+
+.combat-actions h4 {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--space-lg);
+  color: var(--neon);
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+
+.turn-indicator {
+  margin-top: var(--space-2xl);
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  border-radius: var(--radius);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.player-turn {
+  background: rgba(20, 255, 131, 0.2);
+  color: var(--neon);
+  border: 2px solid var(--neon);
+}
+
+.enemy-turn {
+  background: rgba(255, 55, 95, 0.2);
+  color: var(--danger);
+  border: 2px solid var(--danger);
+}
+
+.combat-log-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.combat-log {
+  max-height: 500px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.log-entry {
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--font-size-sm);
+}
+
+.log-attack {
+  border-left-color: var(--warn);
+}
+
+.log-critical {
+  border-left-color: var(--danger);
+  background: rgba(255, 55, 95, 0.1);
+}
+
+.log-time {
+  color: var(--muted);
+  font-size: var(--font-size-xs);
+}
+
+.log-message {
+  color: var(--text);
+}
+
+.log-damage {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .combat {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+}

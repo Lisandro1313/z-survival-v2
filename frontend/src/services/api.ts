@@ -1,9 +1,9 @@
 /**
  * API Service
- * Wrapper para requests HTTP con autenticación JWT
+ * Wrapper para requests HTTP con autenticación basada en sesión
  */
 
-import { getAccessToken, useAuthStore, isTokenExpiringSoon } from '../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -12,13 +12,13 @@ interface RequestOptions extends RequestInit {
 }
 
 /**
- * Hace un request HTTP con manejo automático de JWT
+ * Hace un request HTTP con manejo automático de cookies/sesión
  */
 async function apiRequest<T = any>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { requiresAuth = true, headers = {}, ...fetchOptions } = options;
+  const { requiresAuth = false, headers = {}, ...fetchOptions } = options;
 
   // Preparar headers
   const requestHeaders: HeadersInit = {
@@ -26,46 +26,21 @@ async function apiRequest<T = any>(
     ...headers
   };
 
-  // Agregar JWT si es necesario
-  if (requiresAuth) {
-    let accessToken = getAccessToken();
-
-    // Si el token está próximo a expirar, renovarlo
-    if (accessToken && isTokenExpiringSoon(accessToken)) {
-      const refreshed = await useAuthStore.getState().refreshAccessToken();
-      if (refreshed) {
-        accessToken = getAccessToken();
-      }
-    }
-
-    if (accessToken) {
-      requestHeaders['Authorization'] = `Bearer ${accessToken}`;
-    } else {
-      throw new Error('No access token available');
-    }
-  }
-
-  // Hacer request
+  // Hacer request con credentials para enviar cookies
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...fetchOptions,
-    headers: requestHeaders
+    headers: requestHeaders,
+    credentials: 'include' // Importante para cookies y CORS
   });
 
   // Manejar errores
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     
-    // Si es 401, intentar refresh
+    // Si es 401, redirigir a login
     if (response.status === 401 && requiresAuth) {
-      const refreshed = await useAuthStore.getState().refreshAccessToken();
-      if (refreshed) {
-        // Reintentar request con nuevo token
-        return apiRequest(endpoint, options);
-      } else {
-        // Logout si refresh falló
-        useAuthStore.getState().logout();
-        throw new Error('Session expired, please login again');
-      }
+      useAuthStore.getState().logout();
+      throw new Error('Session expired, please login again');
     }
     
     throw new Error(error.error || error.message || 'Request failed');
@@ -116,19 +91,19 @@ export const api = {
     getInfo: (playerId: string) => apiRequest(`/player/${playerId}`)
   },
 
-  // Characters (protegidas con JWT)
+  // Characters
   character: {
     create: (data: any) =>
-      apiRequest('/auth/character/create', {
+      apiRequest('/personaje/crear', {
         method: 'POST',
         body: JSON.stringify(data)
       }),
 
     list: (userId: number) =>
-      apiRequest(`/auth/characters/${userId}`),
+      apiRequest(`/personajes/${userId}`),
 
     load: (characterId: number) =>
-      apiRequest('/auth/character/load', {
+      apiRequest('/personaje/load', {
         method: 'POST',
         body: JSON.stringify({ personajeId: characterId })
       })

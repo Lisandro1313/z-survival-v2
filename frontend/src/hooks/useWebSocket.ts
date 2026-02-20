@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useGameStore } from '../stores/gameStore';
-import { useAuthStore, getAccessToken } from '../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 import type { WSMessage, RadioMessage } from '../types';
 
@@ -31,6 +31,11 @@ export function useWebSocket() {
     addRadioMessage,
     setEquippedRadio,
     addNotification,
+    setMissions,
+    setMyMissions,
+    addMission,
+    updateMission,
+    removeMission,
   } = useGameStore();
 
   const { handleWebSocketNotification } = useNotificationStore();
@@ -161,7 +166,9 @@ export function useWebSocket() {
         case 'radio:frequencies':
           console.log('📻 Frecuencias activas:', message.frequencies);
           break;
-NOTIFICATIONS
+
+        // ====================================
+        // NOTIFICATIONS
         // ====================================
 
         case 'notification:new':
@@ -171,7 +178,109 @@ NOTIFICATIONS
           break;
 
         // ====================================
-        // 
+        // MISSIONS (FASE 11)
+        // ====================================
+
+        case 'missions:list':
+          console.log('🎯 Missions received:', message.missions);
+          if (message.missions) {
+            setMissions(message.missions.available || []);
+            setMyMissions(message.missions.active || []);
+          }
+          break;
+
+        case 'mission:new':
+          console.log('🎯 New mission:', message.mission);
+          if (message.mission) {
+            addMission(message.mission);
+            addNotification({
+              type: 'info',
+      
+    setPlayer, 
+    setCurrentNode, 
+    updateOnlinePlayers, 
+    addRadioMessage, 
+    setEquippedRadio, 
+    addNotification, 
+    setMissions, 
+    setMyMissions, 
+    addMission, 
+    updateMission, 
+    removeMission,
+    handleWebSocketNotification
+  
+            });
+          }
+          break;
+
+        case 'mission:accepted':
+          console.log('✅ Mission accepted:', message.mission);
+          if (message.mission) {
+            updateMission(message.mission.id, message.mission);
+            addNotification({
+              type: 'success',
+              message: `✅ Misión aceptada: ${message.mission.title}`,
+            });
+          }
+          break;
+
+        case 'mission:abandoned':
+          console.log('⚠️ Mission abandoned:', message.missionId);
+          if (message.missionId) {
+            removeMission(message.missionId);
+          }
+          addNotification({
+            type: 'warning',
+            message: message.message || 'Misión abandonada',
+          });
+          break;
+
+        case 'mission:completed':
+          console.log('🎉 Mission completed:', message.mission);
+          if (message.mission && message.rewards) {
+            removeMission(message.mission.id);
+            
+            // Build rewards text
+            const rewardsText: string[] = [];
+            if (message.rewards.xp) rewardsText.push(`⭐ ${message.rewards.xp} XP`);
+            if (message.rewards.tokens) rewardsText.push(`🪙 ${message.rewards.tokens} tokens`);
+            if (message.rewards.items) {
+              const itemNames = Object.keys(message.rewards.items);
+              if (itemNames.length > 0) {
+                rewardsText.push(`📦 ${itemNames.join(', ')}`);
+              }
+            }
+            
+            addNotification({
+              type: 'success',
+              message: `🎉 ${message.mission.title} completada!\n${rewardsText.join(' | ')}`,
+            });
+          }
+          break;
+
+        case 'mission:expired':
+          console.log('⏰ Mission expired:', message.missionId);
+          if (message.missionId) {
+            removeMission(message.missionId);
+          }
+          addNotification({
+            type: 'warning',
+            message: `⏰ Misión expirada: ${message.title || 'Misión'}`,
+          });
+          break;
+
+        case 'mission:participant_joined':
+          console.log('👥 Participant joined mission:', message);
+          if (message.missionId && message.playerId) {
+            // Actualizar misión con nuevo participante
+            // (El backend enviará la lista actualizada)
+          }
+          addNotification({
+            type: 'info',
+            message: `👥 ${message.playerName || 'Jugador'} se unió a tu misión`,
+          });
+          break;
+
         // ====================================
         // ERRORS
         // ====================================
@@ -209,27 +318,17 @@ NOTIFICATIONS
 
     console.log('📡 Connecting to WebSocket...');
     
-    // Obtener JWT token
-    const accessToken = getAccessToken();
-    
-    // Construir URL con JWT si está disponible
-    const wsUrl = accessToken 
-      ? `${WS_URL}?token=${encodeURIComponent(accessToken)}`
-      : WS_URL;
-    
-    ws.current = new WebSocket(wsUrl);
+    ws.current = new WebSocket(WS_URL);
 
     ws.current.onopen = () => {
       console.log('✅ WebSocket connected');
       
-      // Si no hay JWT en URL, autenticar por mensaje (fallback)
-      if (!accessToken) {
-        ws.current?.send(JSON.stringify({
-          type: 'auth',
-          playerId: player.id,
-          playerName: player.username,
-        }));
-      }
+      // Autenticar con el servidor
+      ws.current?.send(JSON.stringify({
+        type: 'auth',
+        playerId: player.id,
+        playerName: player.username,
+      }));
 
       // Start heartbeat
       heartbeatInterval.current = setInterval(() => {

@@ -584,5 +584,364 @@
         "siguiente": null
       }
     ]
+  },
+  {
+    "id": "quest_inventario_fantasma_inicio",
+    "npc_id": "npc_sofia",
+    "texto": "Necesito que revises algo... He estado llevando un registro no oficial de los suministros médicos. Los números no coinciden con lo que dice Gómez.",
+    "condiciones": {
+      "flags_required": ["sofia_hints_gomez_stash"],
+      "flags_forbidden": ["quest_inventario_fantasma_started"],
+      "trust_required": { "sofia": 25 }
+    },
+    "opciones": [
+      {
+        "texto": "✅ [Investigar] Muéstrame los registros",
+        "consecuencias": {
+          "set_flags": ["quest_inventario_fantasma_started"],
+          "start_quest": "quest_inventario_fantasma",
+          "trust_change": { "sofia": 10 }
+        },
+        "siguiente": "quest_inventario_fantasma_pistas"
+      },
+      {
+        "texto": "🤔 [Dudar] ¿Por qué llevas registros secretos?",
+        "consecuencias": {
+          "trust_change": { "sofia": -5 }
+        },
+        "siguiente": "sofia_explica_registros"
+      },
+      {
+        "texto": "❌ [Rechazar] No quiero meterme en esto",
+        "consecuencias": {
+          "set_flags": ["player_ignored_sofia_evidence"],
+          "trust_change": { "sofia": -15 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "sofia_explica_registros",
+    "npc_id": "npc_sofia",
+    "texto": "Alguien tiene que estar atento. Ana está distraída con la política, Marco con la seguridad... Yo solo observo y anoto. Y algo no cuadra.",
+    "condiciones": {
+      "flags_required": ["quest_inventario_fantasma_started"]
+    },
+    "opciones": [
+      {
+        "texto": "✅ [Aceptar] Tienes razón. Vamos a investigar",
+        "consecuencias": {
+          "start_quest": "quest_inventario_fantasma",
+          "trust_change": { "sofia": 10 }
+        },
+        "siguiente": "quest_inventario_fantasma_pistas"
+      }
+    ]
+  },
+  {
+    "id": "quest_inventario_fantasma_pistas",
+    "npc_id": "npc_sofia",
+    "texto": "Revisa la morgue y la enfermería. Compara lo que encuentras con mis notas. Si hay discrepancias, tenemos prueba de acaparamiento.",
+    "condiciones": {
+      "flags_required": ["quest_inventario_fantasma_started"],
+      "flags_forbidden": ["found_fake_records"]
+    },
+    "opciones": [
+      {
+        "texto": "📋 [Investigar] Iré a revisar ahora",
+        "consecuencias": {
+          "set_flags": ["investigating_inventory"]
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "quest_inventario_fantasma_found_evidence",
+    "npc_id": "npc_sofia",
+    "texto": "¿Y bien? ¿Coinciden los números?",
+    "condiciones": {
+      "flags_required": ["found_fake_records"],
+      "flags_forbidden": ["quest_inventario_fantasma_completed"]
+    },
+    "opciones": [
+      {
+        "texto": "✅ [Confirmar] Tienes razón. Faltan al menos 20 dosis",
+        "consecuencias": {
+          "set_flags": ["confirmed_internal_hoarding", "quest_inventario_fantasma_completed"],
+          "trust_change": { "sofia": 20, "gomez": -30 }
+        },
+        "siguiente": "sofia_decision_siguiente"
+      },
+      {
+        "texto": "🤥 [Mentir] Todo coincide. Debe ser un error tuyo",
+        "consecuencias": {
+          "set_flags": ["player_covered_gomez", "player_ignored_evidence"],
+          "trust_change": { "sofia": -40, "gomez": 15 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "sofia_decision_siguiente",
+    "npc_id": "npc_sofia",
+    "texto": "Ahora lo sabemos con certeza. ¿Se lo decimos a Ana? Ella podría actuar de forma... drástica.",
+    "condiciones": {
+      "flags_required": ["confirmed_internal_hoarding"]
+    },
+    "opciones": [
+      {
+        "texto": "⚖️ [Decirle a Ana] Ella necesita saberlo",
+        "consecuencias": {
+          "set_flags": ["told_ana_hoarding_evidence"],
+          "trust_change": { "ana": 25, "gomez": -50 }
+        },
+        "siguiente": "ana_reacts_to_evidence"
+      },
+      {
+        "texto": "🤐 [Guardar secreto] Esperemos el momento adecuado",
+        "consecuencias": {
+          "set_flags": ["holding_evidence_secret"],
+          "trust_change": { "sofia": 10 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "quest_decision_triaje_inicio",
+    "npc_id": "npc_ana",
+    "texto": "Tenemos medicina para una sola persona. Dos pacientes críticos: un ingeniero que mantiene el generador... y un niño de 8 años. No me pidas que elija. Dime tú qué harías.",
+    "condiciones": {
+      "flags_required": ["quest_103_completed"],
+      "flags_forbidden": ["quest_triaje_started"],
+      "trust_required": { "ana": 35 }
+    },
+    "opciones": [
+      {
+        "texto": "⚙️ [Sugerir] El ingeniero. Sin electricidad todos mueren",
+        "consecuencias": {
+          "set_flags": ["quest_triaje_started", "player_suggested_engineer"],
+          "trust_change": { "ana": -10 }
+        },
+        "siguiente": "ana_triaje_reaccion_engineer"
+      },
+      {
+        "texto": "👶 [Sugerir] El niño. No podemos perder nuestra humanidad",
+        "consecuencias": {
+          "set_flags": ["quest_triaje_started", "player_suggested_child"],
+          "trust_change": { "ana": 5 }
+        },
+        "siguiente": "ana_triaje_reaccion_child"
+      },
+      {
+        "texto": "🤝 [Compartir dosis] ¿Y si dividimos la medicina?",
+        "consecuencias": {
+          "set_flags": ["quest_triaje_started", "player_suggested_split"],
+          "trust_change": { "ana": 15 }
+        },
+        "siguiente": "ana_triaje_reaccion_split"
+      },
+      {
+        "texto": "🙅 [Rechazar] No voy a tomar esa decisión",
+        "consecuencias": {
+          "set_flags": ["player_refused_triaje"],
+          "trust_change": { "ana": -20 }
+        },
+        "siguiente": "ana_triaje_decepcionada"
+      }
+    ]
+  },
+  {
+    "id": "ana_triaje_reaccion_engineer",
+    "npc_id": "npc_ana",
+    "texto": "...Tienes razón. El bien mayor. Pero no esperes que duerma bien sabiendo que dejé morir a un niño por lógica fría.",
+    "condiciones": {
+      "flags_required": ["player_suggested_engineer"]
+    },
+    "opciones": [
+      {
+        "texto": "💪 [Apoyar] Hiciste lo correcto",
+        "consecuencias": {
+          "set_flags": ["ana_made_harsh_choice", "ana_hardened"],
+          "trust_change": { "ana": 10 }
+        },
+        "siguiente": null
+      },
+      {
+        "texto": "😔 [Consolar] No era una decisión fácil",
+        "consecuencias": {
+          "set_flags": ["ana_made_harsh_choice", "player_empathized_ana"]
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "ana_triaje_reaccion_child",
+    "npc_id": "npc_ana",
+    "texto": "El niño sobrevivió. Pero el generador falló dos días después. Tres personas murieron de frío esa noche. ¿Valió la pena tu moralidad?",
+    "condiciones": {
+      "flags_required": ["player_suggested_child"]
+    },
+    "opciones": [
+      {
+        "texto": "✊ [Defender] Sí. No somos animales",
+        "consecuencias": {
+          "set_flags": ["ana_broke_down", "player_defended_morality"],
+          "trust_change": { "ana": 20 }
+        },
+        "siguiente": null
+      },
+      {
+        "texto": "😢 [Arrepentirse] Tal vez me equivoqué...",
+        "consecuencias": {
+          "set_flags": ["ana_broke_down", "player_regrets_choice"],
+          "trust_change": { "ana": -10 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "ana_triaje_reaccion_split",
+    "npc_id": "npc_ana",
+    "texto": "Dividir la dosis... Es arriesgado. Podríamos perder a ambos. Pero al menos intentamos salvarlos a los dos. Lo haré.",
+    "condiciones": {
+      "flags_required": ["player_suggested_split"]
+    },
+    "opciones": [
+      {
+        "texto": "🎲 [Aceptar] Es el único camino ético",
+        "consecuencias": {
+          "set_flags": ["ana_tried_compromise", "quest_triaje_completed"],
+          "trust_change": { "ana": 25 }
+        },
+        "siguiente": "ana_triaje_resultado_split"
+      }
+    ]
+  },
+  {
+    "id": "ana_triaje_resultado_split",
+    "npc_id": "npc_ana",
+    "texto": "Ambos sobrevivieron. Fue suerte... o tal vez no. Gracias por no obligarme a sacrificar mi humanidad por lógica.",
+    "condiciones": {
+      "flags_required": ["ana_tried_compromise"]
+    },
+    "opciones": [
+      {
+        "texto": "✅ [Celebrar] Hicimos lo correcto",
+        "consecuencias": {
+          "trust_change": { "ana": 10 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "quest_emergencia_futura_inicio",
+    "npc_id": "npc_gomez",
+    "texto": "Sé que me odias. Pero necesito que entiendas por qué guardé esos suministros. No es por egoísmo... Es por ella.",
+    "condiciones": {
+      "flags_required": ["player_negotiated_gomez"],
+      "flags_forbidden": ["quest_emergencia_futura_started"],
+      "trust_required": { "gomez": 10 }
+    },
+    "opciones": [
+      {
+        "texto": "👂 [Escuchar] ¿Quién es 'ella'?",
+        "consecuencias": {
+          "set_flags": ["quest_emergencia_futura_started"],
+          "trust_change": { "gomez": 15 }
+        },
+        "siguiente": "gomez_reveals_past"
+      },
+      {
+        "texto": "❌ [Rechazar] No me importan tus excusas",
+        "consecuencias": {
+          "trust_change": { "gomez": -25 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "gomez_reveals_past",
+    "npc_id": "npc_gomez",
+    "texto": "Mi hija. Quedó atrás en la ciudad cuando evacuamos. Si hay alguna esperanza de que venga... necesito estar preparado. Por eso guardo medicina.",
+    "condiciones": {
+      "flags_required": ["quest_emergencia_futura_started"]
+    },
+    "opciones": [
+      {
+        "texto": "💚 [Creer] Entiendo. Haría lo mismo",
+        "consecuencias": {
+          "set_flags": ["player_trusts_gomez", "gomez_revealed_past"],
+          "trust_change": { "gomez": 40 }
+        },
+        "siguiente": "gomez_agradecido"
+      },
+      {
+        "texto": "🤥 [Fingir] Claro... te creo",
+        "consecuencias": {
+          "set_flags": ["player_fake_trust", "gomez_revealed_past"],
+          "trust_change": { "gomez": 10 }
+        },
+        "siguiente": "gomez_aliviado"
+      },
+      {
+        "texto": "⚔️ [Usar info] Le diré a todos que guardas medicina por razones personales",
+        "consecuencias": {
+          "set_flags": ["player_weaponized_secret"],
+          "trust_change": { "gomez": -60, "ana": 20 }
+        },
+        "siguiente": "gomez_traicionado"
+      }
+    ]
+  },
+  {
+    "id": "gomez_agradecido",
+    "npc_id": "npc_gomez",
+    "texto": "Gracias... Gracias por entender. Si alguna vez necesitas algo, cuenta conmigo.",
+    "condiciones": {
+      "flags_required": ["player_trusts_gomez"]
+    },
+    "opciones": [
+      {
+        "texto": "🤝 [Alianza] Somos un equipo ahora",
+        "consecuencias": {
+          "set_flags": ["gomez_player_alliance"],
+          "trust_change": { "gomez": 10 }
+        },
+        "siguiente": null
+      }
+    ]
+  },
+  {
+    "id": "gomez_traicionado",
+    "npc_id": "npc_gomez",
+    "texto": "...Me usaste. Nunca volveré a confiar en nadie. Especialmente en ti.",
+    "condiciones": {
+      "flags_required": ["player_weaponized_secret"]
+    },
+    "opciones": [
+      {
+        "texto": "😔 [Arrepentirse] Lo siento...",
+        "consecuencias": {
+          "set_flags": ["gomez_permanently_hostile"],
+          "trust_change": { "gomez": -40 }
+        },
+        "siguiente": null
+      },
+      {
+        "texto": "🔥 [Confrontar] Deberías haber sido honesto desde el principio",
+        "consecuencias": {
+          "set_flags": ["gomez_permanently_hostile", "player_justified_betrayal"]
+        },
+        "siguiente": null
+      }
+    ]
   }
 ]

@@ -55,17 +55,17 @@ function crearUsuario(username, password) {
     if (jsonDB) {
         return jsonDB.createUser(username, password);
     }
-    
+
     if (!db) {
-        throw new Error('No hay base de datos disponible');
+        return { success: false, error: 'No hay base de datos disponible' };
     }
-    
+
     try {
         const stmt = db.prepare('INSERT INTO usuarios (username, password) VALUES (?, ?)');
         const result = stmt.run(username, password);
-        return result.lastInsertRowid;
+        return { success: true, id: result.lastInsertRowid, message: 'Usuario creado exitosamente' };
     } catch (err) {
-        throw new Error('Usuario ya existe');
+        return { success: false, error: 'Usuario ya existe' };
     }
 }
 
@@ -73,11 +73,11 @@ function getUserByUsername(username) {
     if (jsonDB) {
         return jsonDB.getUserByUsername(username);
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM usuarios WHERE username = ?');
     return stmt.get(username) || null;
 }
@@ -86,11 +86,11 @@ function getUserById(userId) {
     if (jsonDB) {
         return jsonDB.getUserById(userId);
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM usuarios WHERE id = ?');
     return stmt.get(userId) || null;
 }
@@ -103,11 +103,11 @@ function loginUsuario(username, password) {
         }
         return null;
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM usuarios WHERE username = ? AND password = ?');
     const user = stmt.get(username, password);
     return user || null;
@@ -211,11 +211,11 @@ function obtenerPersonajes(usuarioId) {
     if (jsonDB) {
         return jsonDB.getPlayersByUserId(usuarioId);
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM personajes WHERE usuario_id = ? ORDER BY ultima_conexion DESC');
     return stmt.all(usuarioId);
 }
@@ -229,11 +229,11 @@ function obtenerPersonaje(personajeId) {
         }
         return personaje;
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM personajes WHERE id = ?');
     const personaje = stmt.get(personajeId);
 
@@ -249,11 +249,11 @@ function getPlayerByName(nombre) {
     if (jsonDB) {
         return jsonDB.getPlayerByName(nombre);
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare('SELECT * FROM personajes WHERE nombre = ?');
     return stmt.get(nombre) || null;
 }
@@ -267,11 +267,11 @@ function createPlayer(playerData) {
         const id = jsonDB.createPlayer(playerData);
         return id;
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     // Para SQLite, convertir a formato compatible
     const {
         usuarioId,
@@ -290,13 +290,13 @@ function createPlayer(playerData) {
         stats = '{}',
         skills = '{}'
     } = playerData;
-    
+
     const stmt = db.prepare(`
         INSERT INTO personajes 
         (usuario_id, nombre, clase, avatar, color, nivel, xp, salud, hambre, inventario, skills)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     try {
         const result = stmt.run(
             usuarioId,
@@ -311,7 +311,7 @@ function createPlayer(playerData) {
             inventario,
             skills
         );
-        
+
         return result.lastInsertRowid;
     } catch (err) {
         throw new Error(err.message);
@@ -327,7 +327,10 @@ function guardarProgreso(personajeId, datos) {
         hambre,
         locacion,
         inventario,
-        skills
+        skills,
+        currency,
+        lastDailyReward,
+        loginStreak
     } = datos;
 
     if (jsonDB) {
@@ -339,19 +342,24 @@ function guardarProgreso(personajeId, datos) {
             hambre,
             locacion,
             inventario: JSON.stringify(inventario),
-            skills: JSON.stringify(skills)
+            skills: JSON.stringify(skills),
+            currency,
+            lastDailyReward,
+            loginStreak
         });
         return;
     }
-    
+
     if (!db) {
         throw new Error('No hay base de datos disponible');
     }
-    
+
     const stmt = db.prepare(`
         UPDATE personajes 
         SET nivel = ?, xp = ?, xp_siguiente_nivel = ?, salud = ?, hambre = ?, 
-            locacion = ?, inventario = ?, skills = ?, ultima_conexion = CURRENT_TIMESTAMP
+            locacion = ?, inventario = ?, skills = ?, 
+            currency = ?, lastDailyReward = ?, loginStreak = ?,
+            ultima_conexion = CURRENT_TIMESTAMP
         WHERE id = ?
     `);
 
@@ -364,13 +372,16 @@ function guardarProgreso(personajeId, datos) {
         locacion,
         JSON.stringify(inventario),
         JSON.stringify(skills),
+        currency !== undefined ? currency : null,
+        lastDailyReward !== undefined ? lastDailyReward : null,
+        loginStreak !== undefined ? loginStreak : 0,
         personajeId
     );
 }
 
 function actualizarEstadisticas(personajeId, stats) {
     if (!db) return;
-    
+
     const campos = Object.keys(stats).map(k => `${k} = ${k} + ?`).join(', ');
     const valores = Object.values(stats);
 
@@ -380,7 +391,7 @@ function actualizarEstadisticas(personajeId, stats) {
 
 function obtenerEstadisticas(personajeId) {
     if (!db) return null;
-    
+
     const stmt = db.prepare('SELECT * FROM estadisticas WHERE personaje_id = ?');
     return stmt.get(personajeId);
 }
@@ -393,6 +404,7 @@ function initialize() {
 export default {
     initialize,
     createUser: crearUsuario,
+    crearUsuario,  // Alias para compatibilidad
     getUserByUsername,
     getUserById,
     getPlayerByName,

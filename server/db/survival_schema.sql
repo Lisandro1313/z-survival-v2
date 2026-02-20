@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS personajes (
     -- Skills JSON
     skills TEXT DEFAULT '{"combate":1,"medicina":1,"sigilo":1,"supervivencia":1,"mecanica":1}',
     
+    -- Economía (FASE 15)
+    currency INTEGER DEFAULT 100,
+    lastDailyReward TEXT DEFAULT NULL, -- ISO timestamp de última recompensa diaria
+    loginStreak INTEGER DEFAULT 0, -- Días consecutivos de login
+    
     -- Estado
     vivo INTEGER DEFAULT 1,
     ultima_conexion DATETIME DEFAULT CURRENT_TIMESTAMP,

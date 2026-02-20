@@ -1,0 +1,21 @@
+.shell {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.shell-main {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-xl);
+  background: var(--bg);
+}
+
+@media (max-width: 768px) {
+  .shell-main {
+    padding: var(--space-md);
+  }
+}

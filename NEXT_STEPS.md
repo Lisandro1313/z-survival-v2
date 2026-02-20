@@ -1,14 +1,14 @@
 # 🎮 Z-SURVIVAL - PRÓXIMOS PASOS Y ESTADO ACTUAL
 
-**Fecha de última actualización**: 13 de Febrero, 2026  
-**Versión**: MVP v3.0 - Con Sistema de Logros y Efectos Visuales  
+**Fecha de última actualización**: 18 de Febrero, 2026  
+**Versión**: MVP v4.0 - Con Sistema de Raids PvE  
 **Repositorio**: https://github.com/Lisandro1313/z-survival-v2
 
 ---
 
 ## 📊 ESTADO ACTUAL DEL PROYECTO
 
-### ✅ Completado (FASES 1-10)
+### ✅ Completado (FASES 1-16)
 
 #### **FASE 1-2: Fundamentos y Renders Defensivos**
 
@@ -88,6 +88,90 @@
   - Level up banner (rotation + scale)
   - Particle effects
   - Stat shimmer bars
+
+#### **FASE 11: Eventos Globales y Misiones Dinámicas**
+
+- 4 tipos de eventos globales (hordas, airdrops, comerciantes, clima)
+- Sistema de misiones dinámicas generadas
+- Programación automática cada 10-20 minutos
+- UI dedicada con tarjetas de eventos
+
+#### **FASE 12: Construcción Cooperativa**
+
+- 8 estructuras construibles con niveles
+- Sistema de contribuciones colaborativas
+- Efectos permanentes del refugio
+- Progreso en tiempo real con barras visuales
+
+#### **FASE 13: Combate Avanzado**
+
+- 10 tipos de zombies únicos (común → mini-boss)
+- 13 armas con stats + 6 armaduras
+- 8 habilidades especiales con cooldowns
+- Sistema de efectos de estado
+- Loot con rareza (común → legendario)
+
+#### **FASE 14: Crafteo Avanzado**
+
+- 40+ recetas organizadas por categoría
+- Sistema de mejoras (2-3 tiers por item)
+- 12 modificadores aplicables
+- 7 workbenches especializados
+- Sistema de rareza integrado
+
+#### **FASE 15: Economía y Comercio**
+
+- Moneda "caps" con precios dinámicos
+- Comercio con NPCs (compra/venta)
+- Marketplace jugador-a-jugador
+- Sistema de subastas con escrow
+- Recompensas automáticas integradas
+- UI completa con 3 modales profesionales
+
+#### **FASE 16: Raids PvE y Defensa Cooperativa** ⭐ ÚLTIMA ACTUALIZACIÓN
+
+- **4 tipos de raids** con dificultad escalable:
+  - 🌒 Nocturno (⭐) each 3h - 5 oleadas, 75 zombies, 200 caps
+  - ⚡ Relámpago (⭐⭐) aleatorio - 3 oleadas, 75 zombies, 400 caps
+  - 🔥 Infernal (⭐⭐⭐⭐) each 12h - 10 oleadas, 200+ zombies, 1000 caps
+  - 💀 Horda (⭐⭐⭐⭐⭐) manual - 15 oleadas, 500+ zombies, 5000 caps
+
+- **Sistema de oleadas**:
+  - Spawn dinámico de zombies
+  - Descansos de 30 segundos entre oleadas
+  - Dificultad escalable por oleada
+  - Mini-bosses en oleadas finales
+
+- **Defensa cooperativa**:
+  - HP del refugio basado en construcciones (Fase 12)
+  - Daño progresivo por zombies no detenidos
+  - Reparaciones durante combate (costo en materiales)
+  - Múltiples jugadores defendiendo juntos
+
+- **Trampas y torres defensivas**:
+  - 5 trampas consumibles (púas, minas, alambre, molotovs, red)
+  - 4 torres permanentes (ballesta, fuego, MG, tesla)
+  - Activación automática por proximidad
+  - Máximo 5 trampas por jugador
+
+- **Sistema de participación y recompensas**:
+  - Tracking de daño, kills, reparaciones
+  - 5 rangos: Espectador → Participante → Defensor → Héroe → MVP
+  - Recompensas proporcionales a participación
+  - Multiplicadores por dificultad
+  - Loot con rareza según rendimiento
+
+- **Backend (~1,100 líneas)**:
+  - RaidSystem.js con gestión completa
+  - 9 handlers WebSocket (raid:\*)
+  - Scheduling automático programado
+  - Integración con economía, combate, construcción
+  - Persistencia completa (4 tablas nuevas)
+
+- **Frontend (+50 líneas)**:
+  - Sección de raids en sidebar
+  - Estructura de modal preparada
+  - (Nota: UI completa pendiente de implementación detallada)
 
 ### 📁 Arquitectura Actual
 
