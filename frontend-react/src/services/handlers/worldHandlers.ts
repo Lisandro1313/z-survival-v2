@@ -65,3 +65,17 @@ export function onActiveEvents(payload: unknown): void {
   
   console.log('[Handler] Active events:', eventsArray.length)
 }
+
+export function onWorldNodes(payload: unknown): void {
+  const data = payload as { graph: { nodes: Record<string, any>, edges: Record<string, string[]> } }
+  
+  if (data.graph) {
+    useWorldStore.getState().setGraph(data.graph)
+    console.log('[Handler] World nodes loaded:', Object.keys(data.graph.nodes).length)
+    
+    // Si no hay nodo actual, poner el jugador en el refugio
+    if (!useWorldStore.getState().currentNode) {
+      useWorldStore.getState().setCurrentNode('refugio')
+    }
+  }
+}

@@ -28,6 +28,7 @@ export function getHandlers(): Record<string, MessageHandler> {
     // World handlers
     'world:state': worldHandlers.onWorldState,
     'world:update': worldHandlers.onWorldUpdate,
+    'world:nodes': worldHandlers.onWorldNodes,
     'moved': worldHandlers.onMoved,
     'entity.update': worldHandlers.onEntityUpdate,
     'active_events': worldHandlers.onActiveEvents,

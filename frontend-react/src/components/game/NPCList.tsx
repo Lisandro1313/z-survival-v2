@@ -383,3 +383,4 @@ const getRelationshipIcon = (relationship?: NPC['relationship']): string => {
 };
 
 export default NPCList;
+

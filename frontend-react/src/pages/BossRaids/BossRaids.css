@@ -1,0 +1,534 @@
+.boss-raids-page {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.boss-raids-header {
+  margin-bottom: 30px;
+}
+
+.boss-raids-header h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.boss-raids-header .subtitle {
+  color: var(--text-secondary, #999);
+  font-size: 14px;
+}
+
+/* Active Boss Section */
+.active-boss-section {
+  margin-bottom: 30px;
+}
+
+.boss-card-active {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(153, 27, 27, 0.1));
+  border: 2px solid #dc2626;
+}
+
+.boss-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(220, 38, 38, 0.5);
+}
+
+.boss-icon-large {
+  font-size: 64px;
+}
+
+.boss-title-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boss-title-info h2 {
+  margin: 0;
+  font-size: 28px;
+  color: #dc2626;
+}
+
+.boss-level {
+  font-size: 14px;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.boss-difficulty {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  display: inline-block;
+  width: fit-content;
+}
+
+.boss-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.status-badge.waiting {
+  background: #6b7280;
+}
+
+.status-badge.active {
+  background: #dc2626;
+  animation: pulse 2s infinite;
+}
+
+.status-badge.completed {
+  background: #10b981;
+}
+
+.status-badge.failed {
+  background: #991b1b;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Boss HP Section */
+.boss-hp-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  border: 1px solid #dc2626;
+}
+
+/* Boss Phase Section */
+.boss-phase-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(168, 85, 247, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid #a855f7;
+}
+
+.boss-phase-section h3 {
+  margin-bottom: 15px;
+  color: #a855f7;
+  font-size: 18px;
+}
+
+.phase-abilities {
+  margin-top: 10px;
+}
+
+.phase-abilities strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text-secondary, #999);
+}
+
+.abilities-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ability-tag {
+  padding: 6px 12px;
+  background: rgba(168, 85, 247, 0.3);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e9d5ff;
+}
+
+/* Phases Progress */
+.phases-progress {
+  margin: 20px 0;
+}
+
+.phases-progress h4 {
+  margin-bottom: 15px;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.phases-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.phase-indicator {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.phase-indicator.completed {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.phase-indicator.current {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: white;
+  animation: pulse 2s infinite;
+  transform: scale(1.1);
+}
+
+/* Boss Participants */
+.boss-participants {
+  margin: 20px 0;
+}
+
+.boss-participants h4 {
+  margin-bottom: 15px;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.participant-card {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid #10b981;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
+.participant-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.participant-card.dead {
+  opacity: 0.5;
+  border-left-color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.participant-card .p-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.participant-card .p-hp {
+  font-size: 13px;
+  color: #f87171;
+}
+
+.participant-card .p-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+/* Combat Actions */
+.combat-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.waiting-actions {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+/* Rewards Preview */
+.rewards-preview {
+  margin: 20px 0;
+  padding: 20px;
+  background: rgba(251, 191, 36, 0.1);
+  border-radius: 8px;
+  border: 1px solid #fbbf24;
+}
+
+.rewards-preview h4 {
+  margin-bottom: 15px;
+  color: #fbbf24;
+}
+
+.rewards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.reward-item {
+  padding: 10px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.reward-item.rarity-common {
+  background: rgba(156, 163, 175, 0.2);
+  border: 1px solid #9ca3af;
+}
+
+.reward-item.rarity-uncommon {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid #22c55e;
+}
+
+.reward-item.rarity-rare {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid #3b82f6;
+}
+
+.reward-item.rarity-epic {
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid #a855f7;
+}
+
+.reward-item.rarity-legendary {
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid #fbbf24;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { box-shadow: 0 0 5px rgba(251, 191, 36, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(251, 191, 36, 0.6); }
+}
+
+/* Available Boss Raids */
+.available-boss-raids {
+  margin-top: 30px;
+}
+
+.available-boss-raids h2 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: var(--text-primary, #f5f5f5);
+}
+
+.boss-raids-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.no-bosses {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary, #999);
+  font-size: 16px;
+}
+
+.hint {
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+/* Boss Card Preview */
+.boss-card-preview {
+  transition: all 0.3s;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+}
+
+.boss-card-preview:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(220, 38, 38, 0.3);
+  border-color: #dc2626;
+}
+
+.boss-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.boss-icon {
+  font-size: 40px;
+}
+
+.boss-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.boss-info h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #dc2626;
+}
+
+.boss-info .level {
+  font-size: 13px;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.boss-preview-stats {
+  margin: 15px 0;
+}
+
+.boss-preview-stats p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.boss-preview-stats strong {
+  color: var(--text-secondary, #999);
+}
+
+.boss-preview-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.boss-preview-actions button {
+  flex: 1;
+}
+
+/* Boss Info Modal */
+.boss-info-modal {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.boss-info-modal h2 {
+  color: #dc2626;
+  margin-bottom: 20px;
+  font-size: 24px;
+}
+
+.boss-info-content {
+  margin-bottom: 20px;
+}
+
+.info-section {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.info-section h3 {
+  margin-bottom: 15px;
+  color: var(--accent, #3b82f6);
+  font-size: 18px;
+}
+
+.info-section p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.info-section strong {
+  color: var(--text-secondary, #999);
+}
+
+.phase-info {
+  margin: 15px 0;
+  padding: 15px;
+  background: rgba(168, 85, 247, 0.1);
+  border-left: 3px solid #a855f7;
+  border-radius: 4px;
+}
+
+.phase-info h4 {
+  margin-bottom: 10px;
+  color: #a855f7;
+}
+
+.phase-info ul {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.phase-info li {
+  margin: 5px 0;
+  color: var(--text-secondary, #999);
+}
+
+.rewards-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rewards-list .reward {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .boss-raids-page {
+    padding: 10px;
+  }
+
+  .boss-raids-header h1 {
+    font-size: 24px;
+  }
+
+  .boss-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .boss-raids-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .participants-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .combat-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .waiting-actions {
+    flex-direction: column;
+  }
+}

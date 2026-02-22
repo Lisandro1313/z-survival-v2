@@ -210,8 +210,8 @@ dynamicQuests.setBroadcastCallback((message) => {
 flagSystem.initialize();
 
 // Cargar data de NPCs y Diálogos
-const npcsData = JSON.parse(readFileSync('./server/data/npcs.json', 'utf-8'));
-const dialoguesData = JSON.parse(readFileSync('./server/data/dialogues.json', 'utf-8'));
+const npcsData = JSON.parse(readFileSync('./data/npcs.json', 'utf-8'));
+const dialoguesData = JSON.parse(readFileSync('./data/dialogues.json', 'utf-8'));
 
 // Inicializar DialogueEngine con data
 dialogueEngine.initialize(npcsData, dialoguesData);
@@ -220,7 +220,7 @@ dialogueEngine.initialize(npcsData, dialoguesData);
 questSystem.initialize();
 
 // Iniciar simulación del mundo
-worldSimulation.start();
+// worldSimulation.start(); // TEMPORALMENTE DESHABILITADO - Requiere SQLite
 
 console.log('✓ FASE A: Sistema de flags y diálogos condicionales activo');
 console.log('✓ GlobalEvents: Sistema de eventos narrativos cargado');

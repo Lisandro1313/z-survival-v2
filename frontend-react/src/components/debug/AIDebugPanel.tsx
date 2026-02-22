@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import wsService from '../../services/websocket';
+import ws from '../../services/websocket';
 
 interface Agent {
   id: string;
@@ -34,7 +34,7 @@ const AIDebugPanel: React.FC<AIDebugPanelProps> = ({ onClose }) => {
 
   useEffect(() => {
     // Request AI stats
-    wsService.send('ai:get_stats');
+    ws.send('ai:get_stats');
 
     // Listen for AI stats updates
     const handleAIStats = (payload: any) => {
@@ -48,77 +48,77 @@ const AIDebugPanel: React.FC<AIDebugPanelProps> = ({ onClose }) => {
     const handleAgentSpeech = (payload: any) => {
       console.log('[Agent Speech]', payload);
       // Refresh agents to show updated state
-      wsService.send('ai:get_agents');
+      ws.send('ai:get_agents');
     };
 
     const handleEmotionUpdate = (payload: any) => {
       console.log('[Emotion Update]', payload);
       // Update selected agent if it matches
       if (selectedAgent && selectedAgent.id === payload.agentId) {
-        wsService.send('ai:get_agents');
+        ws.send('ai:get_agents');
       }
     };
 
     // Subscribe to WebSocket events
-    wsService.on('ai:stats', handleAIStats);
-    wsService.on('ai:agents', handleAIAgents);
-    wsService.on('agent:speech', handleAgentSpeech);
-    wsService.on('agent:emotion_update', handleEmotionUpdate);
+    ws.on('ai:stats', handleAIStats);
+    ws.on('ai:agents', handleAIAgents);
+    ws.on('agent:speech', handleAgentSpeech);
+    ws.on('agent:emotion_update', handleEmotionUpdate);
 
     // Admin command responses
     const handleAgentsCleared = (message: any) => {
       console.log('[Agents Cleared]', message);
-      wsService.send('ai:get_agents');
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_agents');
+      ws.send('ai:get_stats');
     };
 
     const handleResetComplete = (message: any) => {
       console.log('[System Reset]', message);
-      wsService.send('ai:get_agents');
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_agents');
+      ws.send('ai:get_stats');
     };
 
-    wsService.on('ai:agents_cleared', handleAgentsCleared);
-    wsService.on('ai:reset_complete', handleResetComplete);
+    ws.on('ai:agents_cleared', handleAgentsCleared);
+    ws.on('ai:reset_complete', handleResetComplete);
 
     // Poll for updates every 5 seconds
     const pollInterval = setInterval(() => {
       if (stats?.enabled) {
-        wsService.send('ai:get_stats');
+        ws.send('ai:get_stats');
         if (tab === 'agents' || tab === 'inspector') {
-          wsService.send('ai:get_agents');
+          ws.send('ai:get_agents');
         }
       }
     }, 5000);
 
     return () => {
-      wsService.off('ai:stats', handleAIStats);
-      wsService.off('ai:agents', handleAIAgents);
-      wsService.off('agent:speech', handleAgentSpeech);
-      wsService.off('agent:emotion_update', handleEmotionUpdate);
-      wsService.off('ai:agents_cleared', handleAgentsCleared);
-      wsService.off('ai:reset_complete', handleResetComplete);
+      ws.off('ai:stats', handleAIStats);
+      ws.off('ai:agents', handleAIAgents);
+      ws.off('agent:speech', handleAgentSpeech);
+      ws.off('agent:emotion_update', handleEmotionUpdate);
+      ws.off('ai:agents_cleared', handleAgentsCleared);
+      ws.off('ai:reset_complete', handleResetComplete);
       clearInterval(pollInterval);
     };
   }, [stats?.enabled, tab, selectedAgent]);
 
   const toggleAI = () => {
     const action = stats?.enabled ? 'ai:stop' : 'ai:start';
-    wsService.send(action);
+    ws.send(action);
     
     // Update UI optimistically
     setTimeout(() => {
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_stats');
     }, 500);
   };
 
   const spawnInitial = () => {
-    wsService.send('ai:spawn_initial', { count: 20, regionId: 'default' });
+    ws.send('ai:spawn_initial', { count: 20, regionId: 'default' });
     
     // Refresh agents list after spawn
     setTimeout(() => {
-      wsService.send('ai:get_agents');
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_agents');
+      ws.send('ai:get_stats');
     }, 1000);
   };
 
@@ -127,12 +127,12 @@ const AIDebugPanel: React.FC<AIDebugPanelProps> = ({ onClose }) => {
       return;
     }
 
-    wsService.send('ai:clear_agents', { regionId: 'default' });
+    ws.send('ai:clear_agents', { regionId: 'default' });
     
     // Refresh after clear
     setTimeout(() => {
-      wsService.send('ai:get_agents');
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_agents');
+      ws.send('ai:get_stats');
       setSelectedAgent(null); // Deselect any selected agent
     }, 500);
   };
@@ -142,12 +142,12 @@ const AIDebugPanel: React.FC<AIDebugPanelProps> = ({ onClose }) => {
       return;
     }
 
-    wsService.send('ai:reset');
+    ws.send('ai:reset');
     
     // Refresh after reset
     setTimeout(() => {
-      wsService.send('ai:get_agents');
-      wsService.send('ai:get_stats');
+      ws.send('ai:get_agents');
+      ws.send('ai:get_stats');
       setSelectedAgent(null);
     }, 1000);
   };
@@ -411,3 +411,4 @@ const AIDebugPanel: React.FC<AIDebugPanelProps> = ({ onClose }) => {
 };
 
 export default AIDebugPanel;
+

@@ -171,3 +171,5 @@ function formatTime(timestamp: number): string {
   if (diffHours < 24) return `Hace ${diffHours}h`
   return `Hace ${diffDays}d`
 }
+
+

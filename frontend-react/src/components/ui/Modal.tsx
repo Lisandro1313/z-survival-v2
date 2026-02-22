@@ -33,3 +33,4 @@ export default function Modal({ isOpen, onClose, title, children, footer }: Moda
     </div>
   )
 }
+

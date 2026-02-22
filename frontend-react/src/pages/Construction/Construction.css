@@ -1,0 +1,738 @@
+.construction-page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Header */
+.construction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.construction-header h1 {
+  font-size: 2rem;
+  margin: 0;
+  color: #fff;
+}
+
+.player-resources {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.resource {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1rem;
+  color: #fff;
+}
+
+/* Tabs */
+.construction-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.construction-tabs button {
+  flex: 1;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.construction-tabs button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.construction-tabs button.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Content */
+.construction-content {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Section Header */
+.section-header {
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin: 0 0 0.5rem 0;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  color: #9ca3af;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Buildings */
+.buildings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.building-card {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.building-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-color: #3b82f6;
+}
+
+.building-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.building-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.building-level {
+  color: #9ca3af;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.building-hp {
+  margin-bottom: 1rem;
+}
+
+.benefits-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+}
+
+.benefits-section strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #22c55e;
+}
+
+.benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefits-list li {
+  padding: 0.25rem 0;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+
+.building-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.building-actions button {
+  flex: 1;
+}
+
+.upgrade-cost {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+}
+
+.upgrade-cost strong {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #3b82f6;
+}
+
+.cost-list {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.cost-item {
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Projects */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.project-card {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+}
+
+.project-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.project-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.project-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.project-status.planning {
+  background: rgba(107, 114, 128, 0.3);
+  color: #9ca3af;
+}
+
+.project-status.in_progress {
+  background: rgba(59, 130, 246, 0.3);
+  color: #3b82f6;
+}
+
+.project-status.completed {
+  background: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.project-progress {
+  margin-bottom: 1.5rem;
+}
+
+.project-resources {
+  margin-bottom: 1.5rem;
+}
+
+.project-resources strong {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #e5e7eb;
+}
+
+.resource-progress {
+  display: grid;
+  grid-template-columns: 80px 1fr 60px;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.resource-label {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.resource-count {
+  text-align: right;
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.contributors-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+}
+
+.contributors-section strong {
+  display: block;
+  margin-bottom: 0.75rem;
+  color: #a855f7;
+}
+
+.contributors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.contributor {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.contributor-name {
+  color: #e5e7eb;
+}
+
+.contributor-amount {
+  color: #22c55e;
+  font-weight: bold;
+}
+
+.more-contributors {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  font-style: italic;
+  padding: 0.25rem;
+}
+
+.estimated-time {
+  margin: 1rem 0;
+  text-align: center;
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.project-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.project-actions button {
+  flex: 1;
+}
+
+/* Blueprints */
+.blueprints-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.blueprint-card {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.9) 0%, rgba(20, 20, 20, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.blueprint-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.blueprint-card.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.blueprint-card.locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.blueprint-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.category-icon {
+  font-size: 2rem;
+}
+
+.blueprint-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.blueprint-description {
+  color: #9ca3af;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.blueprint-benefits {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 8px;
+}
+
+.blueprint-benefits strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #22c55e;
+}
+
+.blueprint-benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.blueprint-benefits li {
+  padding: 0.25rem 0;
+  color: #e5e7eb;
+  font-size: 0.85rem;
+}
+
+.blueprint-benefits li::before {
+  content: '✓ ';
+  color: #22c55e;
+  font-weight: bold;
+  margin-right: 0.5rem;
+}
+
+.blueprint-requirements {
+  margin: 1rem 0;
+}
+
+.blueprint-requirements strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #e5e7eb;
+}
+
+.requirements-list {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.requirement {
+  padding: 0.4rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  color: #fff;
+}
+
+.build-time {
+  margin: 1rem 0;
+  text-align: center;
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.locked-info {
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  color: #ef4444;
+  font-weight: bold;
+  margin-top: 1rem;
+}
+
+/* No data */
+.no-data {
+  text-align: center;
+  padding: 3rem;
+  color: #9ca3af;
+  font-size: 1.1rem;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content h2 {
+  margin: 0 0 1.5rem 0;
+  color: #fff;
+  text-align: center;
+}
+
+.modal-blueprint-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: #3b82f6;
+}
+
+.modal-blueprint-info p {
+  color: #9ca3af;
+  margin-bottom: 1.5rem;
+}
+
+.modal-requirements {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.modal-requirements strong {
+  display: block;
+  margin-bottom: 1rem;
+  color: #e5e7eb;
+}
+
+.requirements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 1rem;
+}
+
+.requirement-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.req-icon {
+  font-size: 2rem;
+}
+
+.req-amount {
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #fbbf24;
+}
+
+.req-label {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  text-transform: capitalize;
+}
+
+.modal-info {
+  padding: 1rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.modal-info p {
+  margin: 0.5rem 0;
+  color: #93c5fd;
+  font-size: 0.9rem;
+}
+
+/* Contribute Modal */
+.contribute-info {
+  margin-bottom: 1.5rem;
+}
+
+.contribute-info h3 {
+  margin: 0 0 1rem 0;
+  color: #3b82f6;
+}
+
+.overall-progress {
+  margin-bottom: 1rem;
+}
+
+.contribute-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.contribute-resource label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #e5e7eb;
+  font-weight: bold;
+}
+
+.resource-status {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.resource-status span {
+  color: #9ca3af;
+}
+
+.contribute-resource input {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+}
+
+.contribute-resource input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-actions button {
+  flex: 1;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .construction-page {
+    padding: 1rem;
+  }
+
+  .construction-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .player-resources {
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .resource {
+    text-align: center;
+  }
+
+  .buildings-grid,
+  .projects-grid,
+  .blueprints-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .building-actions,
+  .project-actions {
+    flex-direction: column;
+  }
+
+  .resource-progress {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .requirements-list {
+    flex-direction: column;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+    width: 95%;
+  }
+
+  .requirements-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -238,3 +238,4 @@ export const Inventory: React.FC<InventoryProps> = ({
     </Card>
   );
 };
+

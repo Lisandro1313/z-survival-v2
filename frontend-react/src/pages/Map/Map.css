@@ -76,6 +76,39 @@
   border-color: var(--danger);
 }
 
+.map-node.current-node {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.map-node.current-node:hover {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.map-node.danger {
+  border-color: #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.map-node-danger {
+  font-size: 10px;
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.map-node-current {
+  font-size: 10px;
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
 .map-node-icon {
   font-size: 32px;
 }

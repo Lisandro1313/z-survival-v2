@@ -17,7 +17,9 @@ export default function Shell({ children }: ShellProps) {
       // Solicitar datos iniciales después de conectar
       setTimeout(() => {
         ws.send('getMissions', {}) // Solicitar misiones
-        console.log('[Shell] Requested missions list')
+        ws.send('getWorldNodes', {}) // Solicitar nodos del mundo
+        ws.send('getPlayerData', {}) // Solicitar datos del jugador
+        console.log('[Shell] Requested initial data: missions, world nodes, player data')
       }, 500) // Pequeño delay para que el login se procese primero
     }).catch(console.error)
     
@@ -37,3 +39,4 @@ export default function Shell({ children }: ShellProps) {
     </div>
   )
 }
+

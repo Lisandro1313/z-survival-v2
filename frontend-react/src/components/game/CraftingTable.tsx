@@ -295,3 +295,4 @@ export const CraftingTable: React.FC<CraftingTableProps> = ({
     </div>
   );
 };
+

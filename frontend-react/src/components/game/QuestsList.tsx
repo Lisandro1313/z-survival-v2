@@ -358,3 +358,4 @@ const getObjectiveIcon = (type: QuestObjective['type']): string => {
 };
 
 export default QuestsList;
+

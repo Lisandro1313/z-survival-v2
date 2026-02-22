@@ -175,3 +175,4 @@ export const WSConnectionIndicator: React.FC = () => {
     </div>
   )
 }
+

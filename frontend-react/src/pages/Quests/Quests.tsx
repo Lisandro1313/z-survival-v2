@@ -142,11 +142,11 @@ export const Quests: React.FC = () => {
             <div className="player-quest-stats">
               <div className="quest-stat-row">
                 <span className="stat-row-label">Nivel</span>
-                <span className="stat-row-value">{player.level}</span>
+                <span className="stat-row-value">{player?.level || 1}</span>
               </div>
               <div className="quest-stat-row">
                 <span className="stat-row-label">XP Actual</span>
-                <span className="stat-row-value">{player.xp || 0}</span>
+                <span className="stat-row-value">{player?.xp || 0}</span>
               </div>
               <div className="quest-stat-row progress">
                 <span className="stat-row-label">Progreso XP</span>
@@ -264,3 +264,5 @@ export const Quests: React.FC = () => {
 };
 
 export default Quests;
+
+

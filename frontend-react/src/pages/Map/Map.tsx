@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorldStore } from '../../store/worldStore'
+import { ws } from '../../services/websocket'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import './Map.css'
@@ -8,8 +9,14 @@ import './Map.css'
 export default function Map() {
   const navigate = useNavigate()
   const nodes = useWorldStore(s => s.graph.nodes)
+  const currentNode = useWorldStore(s => s.currentNode)
   
   const nodesList = Object.values(nodes)
+  
+  const handleExploreNode = (nodeId: string) => {
+    console.log('Explorando nodo:', nodeId)
+    ws.send('exploreNode', { nodeId })
+  }
   
   return (
     <div className="map-container">
@@ -24,23 +31,34 @@ export default function Map() {
             {nodesList.length === 0 && (
               <div className="map-empty">Cargando mapa...</div>
             )}
-            {nodesList.map((node: any) => (
-              <div 
-                key={node.id} 
-                className={`map-node ${node.type || 'unknown'}`}
-                onClick={() => console.log('Navigate to', node.id)}
-              >
-                <span className="map-node-icon">
-                  {node.type === 'refuge' && '🏠'}
-                  {node.type === 'abandoned' && '🏚️'}
-                  {node.type === 'military' && '🎖️'}
-                  {node.type === 'hospital' && '🏥'}
-                  {node.type === 'store' && '🏪'}
-                  {!node.type && '📍'}
-                </span>
-                <span className="map-node-name">{node.name}</span>
-              </div>
-            ))}
+            {nodesList.map((node: any) => {
+              const isCurrentNode = node.id === currentNode
+              const hasZombies = node.zombies && node.zombies > 0
+              
+              return (
+                <div 
+                  key={node.id} 
+                  className={`map-node ${node.type || 'unknown'} ${isCurrentNode ? 'current-node' : ''}`}
+                  onClick={() => handleExploreNode(node.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <span className="map-node-icon">
+                    {isCurrentNode && '📍'}
+                    {!isCurrentNode && node.type === 'safe' && '🏠'}
+                    {!isCurrentNode && node.type === 'loot' && '📦'}
+                    {!isCurrentNode && node.type === 'danger' && '⚠️'}
+                    {!isCurrentNode && !node.type && '🏚️'}
+                  </span>
+                  <span className="map-node-name">{node.name}</span>
+                  {hasZombies && (
+                    <span className="map-node-danger">🧟 {node.zombies}</span>
+                  )}
+                  {isCurrentNode && (
+                    <span className="map-node-current">TÚ</span>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
         
@@ -112,3 +130,5 @@ export default function Map() {
     </div>
   )
 }
+
+
